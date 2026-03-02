@@ -26,6 +26,8 @@ export interface Question {
 
 export interface AppConfig {
   timeout: number
+  notification: boolean
+  autoOpenBrowser: boolean
 }
 
 const API_BASE = '/api'

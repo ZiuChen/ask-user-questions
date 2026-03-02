@@ -18,11 +18,15 @@ const { theme, setTheme } = useDarkMode()
 const saving = ref(false)
 const saved = ref(false)
 const localTimeout = ref(props.config.timeout)
+const localNotification = ref(props.config.notification)
+const localAutoOpenBrowser = ref(props.config.autoOpenBrowser)
 
 watch(
   () => props.config,
   (newConfig) => {
     localTimeout.value = newConfig.timeout
+    localNotification.value = newConfig.notification
+    localAutoOpenBrowser.value = newConfig.autoOpenBrowser
   },
   { deep: true }
 )
@@ -32,7 +36,9 @@ async function save() {
   saved.value = false
   try {
     await updateConfig({
-      timeout: localTimeout.value
+      timeout: localTimeout.value,
+      notification: localNotification.value,
+      autoOpenBrowser: localAutoOpenBrowser.value
     })
     saved.value = true
     setTimeout(() => {
@@ -94,6 +100,60 @@ function themeLabel(v: Theme): string {
         <p class="mt-2 text-xs text-muted-foreground">
           {{ t.timeoutHint }}
         </p>
+      </CardContent>
+    </Card>
+
+    <!-- Notification -->
+    <Card>
+      <CardContent class="p-4 sm:p-6">
+        <div class="flex items-center justify-between gap-4">
+          <div class="space-y-0.5">
+            <p class="text-sm sm:text-base font-semibold leading-none tracking-tight">
+              {{ t.notification }}
+            </p>
+            <p class="text-xs sm:text-sm text-muted-foreground">{{ t.notificationDescription }}</p>
+          </div>
+          <button
+            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            :class="localNotification ? 'bg-primary' : 'bg-input'"
+            role="switch"
+            :aria-checked="localNotification"
+            @click="localNotification = !localNotification"
+          >
+            <span
+              class="pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform"
+              :class="localNotification ? 'translate-x-5' : 'translate-x-0'"
+            />
+          </button>
+        </div>
+      </CardContent>
+    </Card>
+
+    <!-- Auto Open Browser -->
+    <Card>
+      <CardContent class="p-4 sm:p-6">
+        <div class="flex items-center justify-between gap-4">
+          <div class="space-y-0.5">
+            <p class="text-sm sm:text-base font-semibold leading-none tracking-tight">
+              {{ t.autoOpenBrowser }}
+            </p>
+            <p class="text-xs sm:text-sm text-muted-foreground">
+              {{ t.autoOpenBrowserDescription }}
+            </p>
+          </div>
+          <button
+            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            :class="localAutoOpenBrowser ? 'bg-primary' : 'bg-input'"
+            role="switch"
+            :aria-checked="localAutoOpenBrowser"
+            @click="localAutoOpenBrowser = !localAutoOpenBrowser"
+          >
+            <span
+              class="pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform"
+              :class="localAutoOpenBrowser ? 'translate-x-5' : 'translate-x-0'"
+            />
+          </button>
+        </div>
       </CardContent>
     </Card>
 

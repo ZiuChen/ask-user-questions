@@ -5,10 +5,16 @@ import { join } from 'node:path'
 export interface AppConfig {
   /** Timeout in ms for waiting for an answer. 0 = no timeout (default) */
   timeout: number
+  /** Whether to show system notifications when the model asks a question. Default: true */
+  notification: boolean
+  /** Whether to automatically open the browser when the model asks a question. Default: true */
+  autoOpenBrowser: boolean
 }
 
 const DEFAULT_CONFIG: AppConfig = {
-  timeout: 0
+  timeout: 0,
+  notification: true,
+  autoOpenBrowser: true
 }
 
 const CONFIG_DIR = join(homedir(), '.ask-user-questions')
@@ -65,6 +71,14 @@ function mergeConfig(partial: Partial<AppConfig>): AppConfig {
     timeout:
       typeof partial.timeout === 'number' && partial.timeout >= 0
         ? partial.timeout
-        : DEFAULT_CONFIG.timeout
+        : DEFAULT_CONFIG.timeout,
+    notification:
+      typeof partial.notification === 'boolean'
+        ? partial.notification
+        : DEFAULT_CONFIG.notification,
+    autoOpenBrowser:
+      typeof partial.autoOpenBrowser === 'boolean'
+        ? partial.autoOpenBrowser
+        : DEFAULT_CONFIG.autoOpenBrowser
   }
 }

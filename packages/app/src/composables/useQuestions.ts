@@ -10,7 +10,7 @@ import {
 
 export function useQuestions() {
   const questions = ref<Question[]>([])
-  const config = ref<AppConfig>({ timeout: 0 })
+  const config = ref<AppConfig>({ timeout: 0, notification: true, autoOpenBrowser: true })
   const connected = ref(false)
   const error = ref<string | null>(null)
   let eventSource: EventSource | null = null

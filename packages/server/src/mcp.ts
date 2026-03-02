@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
+import { getConfig } from './config.js'
 import { notify, openOrFocusBrowser } from './notify.js'
 import { store } from './store.js'
 import type { SubQuestion, SubQuestionAnswer } from './types.js'
@@ -80,12 +81,17 @@ export async function startMcp(serverUrl: string): Promise<void> {
       // Create question group in store
       const q = store.createQuestion(subQuestions)
 
-      // Notify the user
+      // Notify the user (respects config)
+      const config = getConfig()
       const firstQ = subQuestions[0].question
       const preview = firstQ.slice(0, 80) + (firstQ.length > 80 ? '...' : '')
       const badge = subQuestions.length > 1 ? ` (+${subQuestions.length - 1} more)` : ''
-      notify(`AI asks: ${preview}${badge}`)
-      openOrFocusBrowser(serverUrl)
+      if (config.notification) {
+        notify(`AI asks: ${preview}${badge}`)
+      }
+      if (config.autoOpenBrowser) {
+        openOrFocusBrowser(serverUrl)
+      }
 
       console.error(
         `[ask-user-questions] Question group created: ${q.id} (${subQuestions.length} questions)`

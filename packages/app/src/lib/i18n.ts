@@ -37,6 +37,10 @@ export interface Messages {
   noQuestionsDescription: string
 
   // Settings
+  notification: string
+  notificationDescription: string
+  autoOpenBrowser: string
+  autoOpenBrowserDescription: string
   timeout: string
   timeoutDescription: string
   noTimeout: string
@@ -91,6 +95,11 @@ const allMessages: Record<Locale, Messages> = {
     noQuestionsDescription:
       'When an AI model needs clarification, questions will appear here. Keep this page open to respond in real time.',
 
+    notification: 'System Notifications',
+    notificationDescription: 'Show a system notification when the AI model asks a question.',
+    autoOpenBrowser: 'Auto Open Browser',
+    autoOpenBrowserDescription:
+      'Automatically open the web page when the AI model asks a question.',
     timeout: 'Timeout',
     timeoutDescription:
       "How long to wait for the user's answer before auto-responding with a timeout message.",
@@ -142,6 +151,10 @@ const allMessages: Record<Locale, Messages> = {
     noQuestionsYet: '暂无问题',
     noQuestionsDescription: '当 AI 模型需要确认时，问题将显示在这里。请保持页面开启以实时回复。',
 
+    notification: '系统通知',
+    notificationDescription: '当 AI 模型提问时，显示系统通知。',
+    autoOpenBrowser: '自动打开浏览器',
+    autoOpenBrowserDescription: '当 AI 模型提问时，自动打开前端页面。',
     timeout: '超时时间',
     timeoutDescription: '等待用户回答的最长时间，超时后将自动返回超时消息。',
     noTimeout: '无超时',
@@ -193,6 +206,10 @@ const allMessages: Record<Locale, Messages> = {
     noQuestionsDescription:
       'AI 모델이 확인이 필요할 때 질문이 여기에 표시됩니다. 실시간으로 응답하려면 이 페이지를 열어 두세요.',
 
+    notification: '시스템 알림',
+    notificationDescription: 'AI 모델이 질문할 때 시스템 알림을 표시합니다.',
+    autoOpenBrowser: '자동 브라우저 열기',
+    autoOpenBrowserDescription: 'AI 모델이 질문할 때 자동으로 웹 페이지를 엽니다.',
     timeout: '시간 제한',
     timeoutDescription:
       '사용자의 답변을 기다리는 최대 시간. 시간 초과 시 자동으로 시간 초과 메시지가 전송됩니다.',
@@ -245,6 +262,10 @@ const allMessages: Record<Locale, Messages> = {
     noQuestionsDescription:
       'AIモデルが確認を必要とする場合、ここに質問が表示されます。リアルタイムで応答するには、このページを開いたままにしてください。',
 
+    notification: 'システム通知',
+    notificationDescription: 'AIモデルが質問した時にシステム通知を表示します。',
+    autoOpenBrowser: 'ブラウザ自動起動',
+    autoOpenBrowserDescription: 'AIモデルが質問した時に自動的にWebページを開きます。',
     timeout: 'タイムアウト',
     timeoutDescription:
       'ユーザーの回答を待つ最大時間。タイムアウト時にタイムアウトメッセージが自動返信されます。',
@@ -297,6 +318,11 @@ const allMessages: Record<Locale, Messages> = {
     noQuestionsDescription:
       'Когда модели AI потребуется уточнение, вопросы появятся здесь. Оставьте эту страницу открытой для ответов в реальном времени.',
 
+    notification: 'Системные уведомления',
+    notificationDescription: 'Показывать системное уведомление, когда модель AI задаёт вопрос.',
+    autoOpenBrowser: 'Автооткрытие браузера',
+    autoOpenBrowserDescription:
+      'Автоматически открывать веб-страницу, когда модель AI задаёт вопрос.',
     timeout: 'Тайм-аут',
     timeoutDescription:
       'Максимальное время ожидания ответа пользователя. При тайм-ауте автоматически отправляется сообщение о тайм-ауте.',
