@@ -69,7 +69,7 @@ The project uses pnpm workspaces and contains two packages:
 - **Published to npm**: No (build output is embedded in server package)
 - **Tech Stack**:
   - [Vue 3](https://vuejs.org/) — UI framework
-  - [radix-vue](https://www.radix-vue.com/) + [ShadcnVue](https://www.shadcn-vue.com/) — UI component library
+  - [ShadcnVue](https://www.shadcn-vue.com/) — UI component library
   - [Tailwind CSS v4](https://tailwindcss.com/) (`@tailwindcss/vite`) — CSS framework
   - [Vite 7](https://vitejs.dev/) — Build tool
 

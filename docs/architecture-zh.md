@@ -69,7 +69,7 @@
 - **发布到 npm**：否（构建产物嵌入 Server 包）
 - **技术栈**：
   - [Vue 3](https://vuejs.org/) — UI 框架
-  - [radix-vue](https://www.radix-vue.com/) + [ShadcnVue](https://www.shadcn-vue.com/) — UI 组件库
+  - [ShadcnVue](https://www.shadcn-vue.com/) — UI 组件库
   - [Tailwind CSS v4](https://tailwindcss.com/)（`@tailwindcss/vite`）— CSS 框架
   - [Vite 7](https://vitejs.dev/) — 构建工具
 
