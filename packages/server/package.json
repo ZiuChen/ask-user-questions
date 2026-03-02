@@ -1,0 +1,42 @@
+{
+  "name": "ask-user-questions",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "An MCP tool that allows AI models to ask users questions via a local web interface.",
+  "author": "",
+  "license": "MIT",
+  "bin": {
+    "ask-user-questions": "./dist/bin.mjs"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown && pnpm run copy:app && pnpm run postbuild",
+    "copy:app": "mkdir -p dist/public && cp -rf ../app/dist/* ./dist/public/ 2>/dev/null || true",
+    "postbuild": "printf '%s\\n' '#!/usr/bin/env node' \"$(cat dist/bin.mjs)\" > dist/bin.mjs && chmod +x dist/bin.mjs",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "hono": "^4.12.3",
+    "srvx": "^0.11.8",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "tsdown": "0.21.0-beta.2",
+    "typescript": "^5.9.3"
+  }
+}

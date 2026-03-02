@@ -1,0 +1,24 @@
+{
+  "name": "ask-user-questions-monorepo",
+  "private": true,
+  "type": "module",
+  "description": "An MCP tool that allows AI models to ask users questions via a local web interface.",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "build": "pnpm --filter @ask-user-questions/app build && pnpm --filter ask-user-questions build",
+    "build:app": "pnpm --filter @ask-user-questions/app build",
+    "build:server": "pnpm --filter ask-user-questions build",
+    "dev": "pnpm --filter @ask-user-questions/app dev",
+    "dev:server": "pnpm --filter ask-user-questions dev",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

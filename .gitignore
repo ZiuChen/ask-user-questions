@@ -1,0 +1,5 @@
+node_modules
+dist
+*.log
+*.vue.js
+.DS_Store
