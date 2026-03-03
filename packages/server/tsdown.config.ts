@@ -6,7 +6,7 @@ export default defineConfig({
     bin: 'src/bin.ts'
   },
   format: 'esm',
-  dts: { entry: 'src/index.ts' },
+  dts: true,
   clean: true,
   shims: true
 })
