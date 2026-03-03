@@ -4,40 +4,12 @@ An MCP (Model Context Protocol) tool that allows AI models to ask users question
 
 [中文文档](README.zh-CN.md)
 
-## How It Works
-
-```
-┌──────────┐  stdio  ┌──────────┐  HTTP   ┌────────────────┐  WebSocket  ┌──────────┐
-│ AI Model │◄───────►│ MCP STDIO│────────►│ Daemon Server  │◄───────────►│ Web App  │
-│ (Claude, │         │ (bin.mjs)│ proxy   │ (daemon.mjs)   │             │ (Browser)│
-│  GPT...) │         └──────────┘         │ localhost:13390│             └──────────┘
-└──────────┘                              └────────────────┘
-                                          ▲ HTTP proxy  ▲
-┌──────────┐  stdio  ┌──────────┐         │             │
-│ AI Model │◄───────►│ MCP STDIO│─────────┘             │
-│ (another) │         │ (bin.mjs)│                       │
-└──────────┘         └──────────┘               ┌───────┴──────┐
-                                                │    Store     │
-                                                │  (in-memory) │
-                                                └──────────────┘
-```
-
-1. **First MCP launch**: `bin.mjs` auto-spawns a background daemon `daemon.mjs` (HTTP + WebSocket server on port 13390)
-2. **Subsequent MCP launches**: Detects the daemon is already running and reuses it
-3. All MCP instances proxy to the daemon's Store via HTTP API (create questions + long-poll for answers)
-4. The daemon pushes real-time events to the browser via WebSocket
-5. The daemon detects browser presence via WebSocket connection count—only opens the browser when no clients are connected
-
 ## Features
 
 - **Daemon architecture**: Independent background process for HTTP/WS, supports multiple MCP clients simultaneously
 - **Batch questions**: Up to 4 sub-questions per call, with single/multi-select and free text
 - **Rich options**: Options support label, description, and recommended flags
 - **Free text**: Every sub-question always includes an "Other" free text input
-- **Real-time communication**: Bidirectional WebSocket
-- **Smart browser management**: Detects browser status via WebSocket connections; only auto-opens when no client is connected
-- **Chromium tab reuse**: On macOS, reuses existing browser tabs via JXA (supports Chrome, Edge, Brave, Vivaldi, Chromium)
-- **Desktop notifications**: Cross-platform notifications via [node-notifier](https://github.com/mikaelbr/node-notifier); click to open/focus browser
 - **Routed navigation**: Home page with pending questions + history; detail page for each question
 - **Internationalization**: 5 languages (English, 中文, 한국어, 日本語, Русский)
 - **Dark mode**: System / Light / Dark themes
@@ -46,15 +18,9 @@ An MCP (Model Context Protocol) tool that allows AI models to ask users question
 
 ## Quick Start
 
-### Install
+### 1. Configure MCP Client
 
-```bash
-npm install -g ask-user-questions
-# or
-npx ask-user-questions
-```
-
-### Configure MCP Client
+`ask-user-questions` provides an MCP STDIO server as a tool interface, which can connect to any MCP client you prefer, such as Claude Desktop or VS Code.
 
 **Claude Desktop** (`claude_desktop_config.json`):
 
@@ -69,18 +35,11 @@ npx ask-user-questions
 }
 ```
 
-**VS Code** (`.vscode/mcp.json`):
+### 2. Get Started
 
-```json
-{
-  "servers": {
-    "ask-user-questions": {
-      "command": "npx",
-      "args": ["ask-user-questions"]
-    }
-  }
-}
-```
+1. When the model invokes the `ask_user` tool during a conversation, the browser interface will **automatically open to display the question**.
+2. Use the browser interface to view pending questions, history, and details for each question, then submit your answers.
+3. The model receives your responses in real time, enabling seamless human-in-the-loop interaction.
 
 ## MCP Tool
 
@@ -155,6 +114,30 @@ Config file: `~/.ask-user-questions/config.json` (also editable via the Web UI s
 | `timeout` | `number` | `0` | Timeout for waiting (ms), 0 = no timeout |
 | `notification` | `boolean` | `true` | Show desktop notifications |
 | `autoOpenBrowser` | `boolean` | `true` | Auto-open browser |
+
+## How It Works
+
+```
+┌──────────┐  stdio  ┌──────────┐  HTTP   ┌────────────────┐  WebSocket  ┌──────────┐
+│ AI Model │◄───────►│ MCP STDIO│────────►│ Daemon Server  │◄───────────►│ Web App  │
+│ (Claude, │         │ (bin.mjs)│ proxy   │ (daemon.mjs)   │             │ (Browser)│
+│  GPT...) │         └──────────┘         │ localhost:13390│             └──────────┘
+└──────────┘                              └────────────────┘
+                                          ▲ HTTP proxy  ▲
+┌──────────┐  stdio  ┌──────────┐         │             │
+│ AI Model │◄───────►│ MCP STDIO│─────────┘             │
+│ (another) │         │ (bin.mjs)│                       │
+└──────────┘         └──────────┘               ┌───────┴──────┐
+                                                │    Store     │
+                                                │  (in-memory) │
+                                                └──────────────┘
+```
+
+1. **First MCP launch**: `bin.mjs` auto-spawns a background daemon `daemon.mjs` (HTTP + WebSocket server on port 13390)
+2. **Subsequent MCP launches**: Detects the daemon is already running and reuses it
+3. All MCP instances proxy to the daemon's Store via HTTP API (create questions + long-poll for answers)
+4. The daemon pushes real-time events to the browser via WebSocket
+5. The daemon detects browser presence via WebSocket connection count—only opens the browser when no clients are connected
 
 ## Development
 

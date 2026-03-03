@@ -4,40 +4,12 @@
 
 [English](README.md)
 
-## 工作原理
-
-```
-┌──────────┐  stdio  ┌──────────┐  HTTP   ┌────────────────┐  WebSocket  ┌──────────┐
-│ AI Model │◄───────►│ MCP STDIO│────────►│ Daemon Server  │◄───────────►│ Web App  │
-│ (Claude, │         │ (bin.mjs)│ proxy   │ (daemon.mjs)   │             │ (Browser)│
-│  GPT...) │         └──────────┘         │ localhost:13390│             └──────────┘
-└──────────┘                              └────────────────┘
-                                          ▲ HTTP proxy  ▲
-┌──────────┐  stdio  ┌──────────┐         │             │
-│ AI Model │◄───────►│ MCP STDIO│─────────┘             │
-│ (另一个)  │         │ (bin.mjs)│                       │
-└──────────┘         └──────────┘               ┌───────┴──────┐
-                                                │    Store     │
-                                                │   (内存)      │
-                                                └──────────────┘
-```
-
-1. **首个 MCP 启动**时，`bin.mjs` 自动 spawn 后台守护进程 `daemon.mjs`（HTTP + WebSocket 服务，端口 13390）
-2. **后续 MCP 启动**时，检测到守护进程已在运行，直接复用
-3. 所有 MCP 实例通过 HTTP API 代理到守护进程的 Store（创建问题 + 长轮询等待回答）
-4. 守护进程通过 WebSocket 将实时事件推送到浏览器
-5. 守护进程通过 WebSocket 连接数检测浏览器是否已打开，未打开时自动打开
-
 ## 特性
 
 - **守护进程架构**：独立后台进程管理 HTTP/WS 服务，支持多个 MCP Client 同时连接
 - **批量提问**：一次最多发送 4 个子问题，支持单选/多选/自由文本
 - **丰富选项**：选项支持 label、description、recommended 标记
 - **自由文本**：每个子问题始终附带 "Other" 自由文本输入
-- **实时通信**：WebSocket 双向实时通信
-- **智能浏览器管理**：通过 WebSocket 连接数检测浏览器状态，仅在无客户端时自动打开
-- **Chromium Tab 复用**：macOS 上通过 JXA 聚焦已有 Chromium 标签页（支持 Chrome、Edge、Brave、Vivaldi、Chromium）
-- **桌面通知**：使用 [node-notifier](https://github.com/mikaelbr/node-notifier) 跨平台桌面通知，点击通知可打开/聚焦浏览器
 - **路由导航**：首页显示待回答问题列表 + 历史记录，详情页展示完整子问题
 - **国际化**：支持 5 种语言（English、中文、한국어、日本語、Русский）
 - **深色模式**：跟随系统 / 浅色 / 深色三种主题
@@ -46,15 +18,9 @@
 
 ## 快速开始
 
-### 安装
+### 1. 配置 MCP 客户端
 
-```bash
-npm install -g ask-user-questions
-# 或
-npx ask-user-questions
-```
-
-### 配置 MCP 客户端
+`ask-user-questions` 提供一个 MCP STDIO 服务器作为工具接口，可以连接到任何你喜欢的 MCP Client 上，如 Claude Desktop、VS Code 等。
 
 **Claude Desktop** (`claude_desktop_config.json`):
 
@@ -69,18 +35,11 @@ npx ask-user-questions
 }
 ```
 
-**VS Code** (`.vscode/mcp.json`):
+### 2. 开始使用
 
-```json
-{
-  "servers": {
-    "ask-user-questions": {
-      "command": "npx",
-      "args": ["ask-user-questions"]
-    }
-  }
-}
-```
+1. 模型在对话中调用 `ask_user` 工具向用户发起提问时，会**自动打开浏览器界面展示问题**。
+2. 你可以通过浏览器界面查看待回答问题、历史记录以及每个问题的详情，并提交你的回答。
+3. 模型实时接收你的回答结果，实现人机交互闭环。
 
 ## MCP 工具
 
@@ -155,6 +114,30 @@ npx ask-user-questions
 | `timeout` | `number` | `0` | 等待回答的超时时间（毫秒），0 = 无超时 |
 | `notification` | `boolean` | `true` | 是否显示桌面通知 |
 | `autoOpenBrowser` | `boolean` | `true` | 是否自动打开浏览器 |
+
+## 工作原理
+
+```
+┌──────────┐  stdio  ┌──────────┐  HTTP   ┌────────────────┐  WebSocket  ┌──────────┐
+│ AI Model │◄───────►│ MCP STDIO│────────►│ Daemon Server  │◄───────────►│ Web App  │
+│ (Claude, │         │ (bin.mjs)│ proxy   │ (daemon.mjs)   │             │ (Browser)│
+│  GPT...) │         └──────────┘         │ localhost:13390│             └──────────┘
+└──────────┘                              └────────────────┘
+                                          ▲ HTTP proxy  ▲
+┌──────────┐  stdio  ┌──────────┐         │             │
+│ AI Model │◄───────►│ MCP STDIO│─────────┘             │
+│ (另一个)  │         │ (bin.mjs)│                       │
+└──────────┘         └──────────┘               ┌───────┴──────┐
+                                                │    Store     │
+                                                │   (内存)      │
+                                                └──────────────┘
+```
+
+1. **首个 MCP 启动**时，`bin.mjs` 自动 spawn 后台守护进程 `daemon.mjs`（HTTP + WebSocket 服务，端口 13390）
+2. **后续 MCP 启动**时，检测到守护进程已在运行，直接复用
+3. 所有 MCP 实例通过 HTTP API 代理到守护进程的 Store（创建问题 + 长轮询等待回答）
+4. 守护进程通过 WebSocket 将实时事件推送到浏览器
+5. 守护进程通过 WebSocket 连接数检测浏览器是否已打开，未打开时自动打开
 
 ## 开发
 

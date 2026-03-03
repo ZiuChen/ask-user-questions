@@ -20,6 +20,12 @@
   "files": [
     "dist"
   ],
+  "keywords": [
+    "MCP",
+    "AI",
+    "user interaction",
+    "questions"
+  ],
   "scripts": {
     "build": "tsdown && pnpm run copy:app && pnpm run postbuild",
     "copy:app": "mkdir -p dist/public && cp -rf ../app/dist/* ./dist/public/ 2>/dev/null || true",
