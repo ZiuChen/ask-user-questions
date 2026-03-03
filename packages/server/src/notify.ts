@@ -23,7 +23,7 @@ const CHROMIUM_BROWSERS = [
  * When the user clicks the notification, the optional `onClick` callback is invoked.
  */
 export function notify(message: string, title = 'Ask User Questions', onClick?: () => void): void {
-  const notification = notifier.notify({
+  notifier.notify({
     title,
     message,
     sound: true,
@@ -31,7 +31,7 @@ export function notify(message: string, title = 'Ask User Questions', onClick?: 
   })
 
   if (onClick) {
-    notification.on('click', onClick)
+    notifier.once('click', onClick)
   }
 }
 
