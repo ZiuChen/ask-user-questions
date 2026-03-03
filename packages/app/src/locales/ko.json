@@ -1,0 +1,53 @@
+{
+  "appTitle": "사용자에게 질문",
+  "questions": "질문",
+  "settings": "설정",
+  "connected": "연결됨",
+  "disconnected": "연결 끊김",
+
+  "aiQuestion": "AI 질문",
+  "answered": "답변 완료",
+  "timedOut": "시간 초과",
+  "pending": "대기 중",
+
+  "freeText": "자유 텍스트",
+  "typeYourAnswer": "답변을 입력하세요...",
+  "pressToSubmit": "{shortcut}로 제출",
+  "submitAnswer": "답변 제출",
+  "decline": "거절",
+  "submitting": "제출 중...",
+  "selectOneOrMore": "하나 이상의 옵션을 선택하세요",
+  "yourAnswer": "답변:",
+  "timedOutLabel": "시간 초과",
+  "answeredAt": "답변 시각",
+  "timedOutAt": "초과 시각",
+
+  "pendingQuestions": "대기 중인 질문",
+  "history": "기록",
+
+  "noQuestionsYet": "아직 질문이 없습니다",
+  "noQuestionsDescription": "AI 모델이 확인이 필요할 때 질문이 여기에 표시됩니다. 실시간으로 응답하려면 이 페이지를 열어 두세요.",
+
+  "notification": "시스템 알림",
+  "notificationDescription": "AI 모델이 질문할 때 시스템 알림을 표시합니다.",
+  "autoOpenBrowser": "자동 브라우저 열기",
+  "autoOpenBrowserDescription": "AI 모델이 질문할 때 자동으로 웹 페이지를 엽니다.",
+  "timeout": "시간 제한",
+  "timeoutDescription": "사용자의 답변을 기다리는 최대 시간. 시간 초과 시 자동으로 시간 초과 메시지가 전송됩니다.",
+  "noTimeout": "제한 없음",
+  "secondsUnit": "초",
+  "minutesUnit": "분",
+  "timeoutHint": "0 = 무제한. 범위: 0 – 10분.",
+  "saveSettings": "설정 저장",
+  "saving": "저장 중...",
+  "saved": "저장됨!",
+  "language": "언어",
+
+  "connectionLost": "연결이 끊겼습니다. 재시도 중...",
+  "failedToSubmit": "답변 제출 실패",
+
+  "theme": "테마",
+  "light": "라이트",
+  "dark": "다크",
+  "system": "시스템"
+}

@@ -1,0 +1,53 @@
+{
+  "appTitle": "询问用户",
+  "questions": "问题",
+  "settings": "设置",
+  "connected": "已连接",
+  "disconnected": "未连接",
+
+  "aiQuestion": "AI 提问",
+  "answered": "已回答",
+  "timedOut": "已超时",
+  "pending": "待回答",
+
+  "freeText": "自由文本",
+  "typeYourAnswer": "输入你的回答...",
+  "pressToSubmit": "按 {shortcut} 提交",
+  "submitAnswer": "提交回答",
+  "decline": "拒绝",
+  "submitting": "提交中...",
+  "selectOneOrMore": "选择一个或多个选项",
+  "yourAnswer": "你的回答：",
+  "timedOutLabel": "已超时",
+  "answeredAt": "回答于",
+  "timedOutAt": "超时于",
+
+  "pendingQuestions": "待回答问题",
+  "history": "历史记录",
+
+  "noQuestionsYet": "暂无问题",
+  "noQuestionsDescription": "当 AI 模型需要确认时，问题将显示在这里。请保持页面开启以实时回复。",
+
+  "notification": "系统通知",
+  "notificationDescription": "当 AI 模型提问时，显示系统通知。",
+  "autoOpenBrowser": "自动打开浏览器",
+  "autoOpenBrowserDescription": "当 AI 模型提问时，自动打开前端页面。",
+  "timeout": "超时时间",
+  "timeoutDescription": "等待用户回答的最长时间，超时后将自动返回超时消息。",
+  "noTimeout": "无超时",
+  "secondsUnit": "秒",
+  "minutesUnit": "分钟",
+  "timeoutHint": "0 = 永不超时。范围：0 – 10 分钟。",
+  "saveSettings": "保存设置",
+  "saving": "保存中...",
+  "saved": "已保存！",
+  "language": "语言",
+
+  "connectionLost": "连接已断开，正在重试...",
+  "failedToSubmit": "提交回答失败",
+
+  "theme": "主题",
+  "light": "浅色",
+  "dark": "深色",
+  "system": "跟随系统"
+}

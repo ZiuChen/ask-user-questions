@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, ref } from 'vue'
+import { type InjectionKey, type Ref, inject, onMounted, onUnmounted, provide, ref } from 'vue'
 import {
   type AppConfig,
   type Question,
@@ -8,7 +8,23 @@ import {
   submitAnswer
 } from '@/lib/api'
 
-export function useQuestions() {
+export interface QuestionsContext {
+  questions: Ref<Question[]>
+  config: Ref<AppConfig>
+  connected: Ref<boolean>
+  error: Ref<string | null>
+  answer: (questionId: string, answers: SubQuestionAnswer[]) => Promise<void>
+  refresh: () => Promise<void>
+}
+
+const QUESTIONS_KEY: InjectionKey<QuestionsContext> = Symbol('questions')
+
+/**
+ * Initialize the SSE connection and global question state.
+ * Should be called ONCE in the root component (App.vue).
+ * Provides global state via Vue's provide/inject.
+ */
+export function provideQuestions(): QuestionsContext {
   const questions = ref<Question[]>([])
   const config = ref<AppConfig>({ timeout: 0, notification: true, autoOpenBrowser: true })
   const connected = ref(false)
@@ -59,24 +75,22 @@ export function useQuestions() {
       },
       onCreated(question) {
         upsertQuestion(question)
-        // Notify user if tab is not focused
         if (document.hidden) {
           const preview = question.questions[0]?.question.slice(0, 30) || 'New Question'
           startTitleFlash(preview)
-          try {
-            if (Notification.permission === 'granted') {
-              new Notification('New Question', {
-                body: question.questions[0]?.question.slice(0, 100),
-                tag: 'ask-user-questions'
-              })
-            }
-          } catch {
-            // Notification API may not be available
-          }
         }
       },
       onAnswered(question) {
         upsertQuestion(question)
+        stopTitleFlash()
+      },
+      onRemind(question) {
+        // Keep the question data fresh and flash title if page is hidden
+        upsertQuestion(question)
+        if (document.hidden) {
+          const preview = question.questions[0]?.question.slice(0, 30) || 'New Question'
+          startTitleFlash(preview)
+        }
       },
       onConfigUpdated(newConfig) {
         config.value = newConfig
@@ -107,19 +121,8 @@ export function useQuestions() {
   }
 
   onMounted(() => {
-    // Immediately fetch questions via REST as fallback
-    // This ensures questions appear even if SSE init is delayed
     refresh()
-    // Then connect SSE for real-time updates
     connect()
-    // Request notification permission
-    try {
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission()
-      }
-    } catch {
-      // Notification API may not be available
-    }
     document.addEventListener('visibilitychange', handleVisibilityChange)
   })
 
@@ -129,12 +132,18 @@ export function useQuestions() {
     document.removeEventListener('visibilitychange', handleVisibilityChange)
   })
 
-  return {
-    questions,
-    config,
-    connected,
-    error,
-    answer,
-    refresh
+  const ctx: QuestionsContext = { questions, config, connected, error, answer, refresh }
+  provide(QUESTIONS_KEY, ctx)
+  return ctx
+}
+
+/**
+ * Inject the global question state. Must be used in a descendant of App.vue.
+ */
+export function useQuestions(): QuestionsContext {
+  const ctx = inject(QUESTIONS_KEY)
+  if (!ctx) {
+    throw new Error('useQuestions() must be used inside a component that calls provideQuestions()')
   }
+  return ctx
 }

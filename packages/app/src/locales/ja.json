@@ -1,0 +1,53 @@
+{
+  "appTitle": "ユーザーに質問",
+  "questions": "質問",
+  "settings": "設定",
+  "connected": "接続済み",
+  "disconnected": "切断",
+
+  "aiQuestion": "AI質問",
+  "answered": "回答済み",
+  "timedOut": "タイムアウト",
+  "pending": "回答待ち",
+
+  "freeText": "フリーテキスト",
+  "typeYourAnswer": "回答を入力...",
+  "pressToSubmit": "{shortcut}で送信",
+  "submitAnswer": "回答を送信",
+  "decline": "拒否",
+  "submitting": "送信中...",
+  "selectOneOrMore": "1つ以上のオプションを選択してください",
+  "yourAnswer": "あなたの回答：",
+  "timedOutLabel": "タイムアウト",
+  "answeredAt": "回答時刻",
+  "timedOutAt": "タイムアウト時刻",
+
+  "pendingQuestions": "回答待ちの質問",
+  "history": "履歴",
+
+  "noQuestionsYet": "まだ質問はありません",
+  "noQuestionsDescription": "AIモデルが確認を必要とする場合、ここに質問が表示されます。リアルタイムで応答するには、このページを開いたままにしてください。",
+
+  "notification": "システム通知",
+  "notificationDescription": "AIモデルが質問した時にシステム通知を表示します。",
+  "autoOpenBrowser": "ブラウザ自動起動",
+  "autoOpenBrowserDescription": "AIモデルが質問した時に自動的にWebページを開きます。",
+  "timeout": "タイムアウト",
+  "timeoutDescription": "ユーザーの回答を待つ最大時間。タイムアウト時にタイムアウトメッセージが自動返信されます。",
+  "noTimeout": "タイムアウトなし",
+  "secondsUnit": "秒",
+  "minutesUnit": "分",
+  "timeoutHint": "0 = 無制限。範囲：0 – 10分。",
+  "saveSettings": "設定を保存",
+  "saving": "保存中...",
+  "saved": "保存しました！",
+  "language": "言語",
+
+  "connectionLost": "接続が切れました。再試行中...",
+  "failedToSubmit": "回答の送信に失敗しました",
+
+  "theme": "テーマ",
+  "light": "ライト",
+  "dark": "ダーク",
+  "system": "システム"
+}

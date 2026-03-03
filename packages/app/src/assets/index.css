@@ -1,7 +1,9 @@
 @import 'tailwindcss';
-@import "tw-animate-css";
+@import 'tw-animate-css';
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+@plugin "@iconify/tailwind4";
 
 @theme {
   --color-background: hsl(var(--background));

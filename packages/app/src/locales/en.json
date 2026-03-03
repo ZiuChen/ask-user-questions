@@ -1,0 +1,53 @@
+{
+  "appTitle": "Ask User Questions",
+  "questions": "Questions",
+  "settings": "Settings",
+  "connected": "Connected",
+  "disconnected": "Disconnected",
+
+  "aiQuestion": "AI Question",
+  "answered": "Answered",
+  "timedOut": "Timed Out",
+  "pending": "Pending",
+
+  "freeText": "Free Text",
+  "typeYourAnswer": "Type your answer...",
+  "pressToSubmit": "Press {shortcut} to submit",
+  "submitAnswer": "Submit Answer",
+  "decline": "Decline",
+  "submitting": "Submitting...",
+  "selectOneOrMore": "Select one or more options",
+  "yourAnswer": "Your answer:",
+  "timedOutLabel": "Timed out",
+  "answeredAt": "Answered at",
+  "timedOutAt": "Timed out at",
+
+  "pendingQuestions": "Pending Questions",
+  "history": "History",
+
+  "noQuestionsYet": "No questions yet",
+  "noQuestionsDescription": "When an AI model needs clarification, questions will appear here. Keep this page open to respond in real time.",
+
+  "notification": "System Notifications",
+  "notificationDescription": "Show a system notification when the AI model asks a question.",
+  "autoOpenBrowser": "Auto Open Browser",
+  "autoOpenBrowserDescription": "Automatically open the web page when the AI model asks a question.",
+  "timeout": "Timeout",
+  "timeoutDescription": "How long to wait for the user's answer before auto-responding with a timeout message.",
+  "noTimeout": "No timeout",
+  "secondsUnit": "s",
+  "minutesUnit": "min",
+  "timeoutHint": "0 = wait forever. Range: 0 – 10 minutes.",
+  "saveSettings": "Save Settings",
+  "saving": "Saving...",
+  "saved": "Saved!",
+  "language": "Language",
+
+  "connectionLost": "Connection lost. Retrying...",
+  "failedToSubmit": "Failed to submit answer",
+
+  "theme": "Theme",
+  "light": "Light",
+  "dark": "Dark",
+  "system": "System"
+}

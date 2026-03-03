@@ -83,6 +83,7 @@ export function connectSSE(handlers: {
   onInit?: (questions: Question[], config: AppConfig) => void
   onCreated?: (question: Question) => void
   onAnswered?: (question: Question) => void
+  onRemind?: (question: Question) => void
   onConfigUpdated?: (config: AppConfig) => void
   onError?: (error: Event) => void
 }): EventSource {
@@ -101,6 +102,11 @@ export function connectSSE(handlers: {
   source.addEventListener('question:answered', (e: MessageEvent) => {
     const question = JSON.parse(e.data)
     handlers.onAnswered?.(question)
+  })
+
+  source.addEventListener('question:remind', (e: MessageEvent) => {
+    const question = JSON.parse(e.data)
+    handlers.onRemind?.(question)
   })
 
   source.addEventListener('config:updated', (e: MessageEvent) => {

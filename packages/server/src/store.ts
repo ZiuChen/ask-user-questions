@@ -9,6 +9,9 @@ class Store {
   private questions = new Map<string, Question>()
   private waiters = new Map<string, (answers: SubQuestionAnswer[]) => void>()
   private listeners = new Set<Listener>()
+  private reminders = new Map<string, ReturnType<typeof setInterval>>()
+
+  private static REMIND_INTERVAL_MS = 5000
 
   createQuestion(subQuestions: SubQuestion[]): Question {
     const q: Question = {
@@ -19,6 +22,7 @@ class Store {
     }
     this.questions.set(q.id, q)
     this.emit('question:created', q)
+    this.startReminder(q.id)
     return q
   }
 
@@ -29,6 +33,8 @@ class Store {
     q.answers = answers
     q.status = 'answered'
     q.answeredAt = new Date().toISOString()
+
+    this.stopReminder(id)
 
     const waiter = this.waiters.get(id)
     if (waiter) {
@@ -60,6 +66,7 @@ class Store {
                 freeText: '[Timeout: No response from user]'
               }))
               question.answeredAt = new Date().toISOString()
+              this.stopReminder(id)
               this.emit('question:answered', question)
             }
             resolve(
@@ -95,7 +102,28 @@ class Store {
   emitConfigUpdate(config: AppConfig): void {
     this.emit('config:updated', config)
   }
+  startReminder(id: string): void {
+    this.stopReminder(id)
+    const timer = setInterval(() => {
+      const q = this.questions.get(id)
+      if (!q || q.status !== 'pending') {
+        this.stopReminder(id)
+        return
+      }
+      this.emit('question:remind', q)
+    }, Store.REMIND_INTERVAL_MS)
+    this.reminders.set(id, timer)
+  }
 
+  private stopReminder(id: string): void {
+    const timer = this.reminders.get(id)
+    if (timer) {
+      clearInterval(timer)
+      this.reminders.delete(id)
+    }
+  }
+
+  private
   private emit(event: string, data: unknown): void {
     for (const listener of this.listeners) {
       listener(event, data)
