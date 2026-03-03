@@ -96,39 +96,43 @@ export async function startMcp(serverUrl: string): Promise<void> {
     version: '0.1.0'
   })
 
-  server.tool(
+  server.registerTool(
     'ask_user',
-    'Ask the user questions and wait for their response. Use this when you need clarification, user preferences, or further instructions. Batch related questions into a single call (max 4). An "Other" option is always available for custom input—do not add your own.',
     {
-      questions: z
-        .array(
-          z.object({
-            question: z.string().describe('The complete question text to display'),
-            multiSelect: z
-              .boolean()
-              .optional()
-              .default(false)
-              .describe('Allow multiple selections'),
-            options: z
-              .array(
-                z.object({
-                  label: z.string().describe('Option label text'),
-                  description: z
-                    .string()
-                    .optional()
-                    .describe('Optional description for the option'),
-                  recommended: z.boolean().optional().describe('Mark this option as recommended')
-                })
-              )
-              .optional()
-              .describe(
-                'Options for the user to choose from. If omitted, shows only a free-text input.'
-              )
-          })
-        )
-        .min(1)
-        .max(4)
-        .describe('Array of 1-4 questions to ask the user')
+      title: 'Ask user questions',
+      description:
+        'Ask the user questions and wait for their response. Use this when you need clarification, user preferences, or further instructions. Batch related questions into a single call (max 4). An "Other" option is always available for custom input—do not add your own.',
+      inputSchema: z.object({
+        questions: z
+          .array(
+            z.object({
+              question: z.string().describe('The complete question text to display'),
+              multiSelect: z
+                .boolean()
+                .optional()
+                .default(false)
+                .describe('Allow multiple selections'),
+              options: z
+                .array(
+                  z.object({
+                    label: z.string().describe('Option label text'),
+                    description: z
+                      .string()
+                      .optional()
+                      .describe('Optional description for the option'),
+                    recommended: z.boolean().optional().describe('Mark this option as recommended')
+                  })
+                )
+                .optional()
+                .describe(
+                  'Options for the user to choose from. If omitted, shows only a free-text input.'
+                )
+            })
+          )
+          .min(1)
+          .max(4)
+          .describe('Array of 1-4 questions to ask the user')
+      })
     },
     async ({ questions }) => {
       const subQuestions: SubQuestion[] = questions.map((q) => ({
