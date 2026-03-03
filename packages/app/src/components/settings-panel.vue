@@ -29,12 +29,14 @@ const saving = ref(false)
 const saved = ref(false)
 const localTimeout = ref(config.timeout)
 const localAutoOpenBrowser = ref(config.autoOpenBrowser)
+const localNotification = ref(config.notification)
 
 watch(
   () => config,
   (c) => {
     localTimeout.value = c.timeout
     localAutoOpenBrowser.value = c.autoOpenBrowser
+    localNotification.value = c.notification
   },
   { deep: true }
 )
@@ -45,7 +47,8 @@ async function save() {
   try {
     await updateConfig({
       timeout: localTimeout.value,
-      autoOpenBrowser: localAutoOpenBrowser.value
+      autoOpenBrowser: localAutoOpenBrowser.value,
+      notification: localNotification.value
     })
     saved.value = true
     setTimeout(() => (saved.value = false), 2000)
@@ -63,6 +66,17 @@ function formatTimeout(ms: number): string {
 
 <template>
   <div class="space-y-5">
+    <!-- System Notifications -->
+    <div class="flex items-center justify-between gap-4">
+      <div class="space-y-0.5">
+        <p class="text-sm font-medium">{{ t('notification') }}</p>
+        <p class="text-xs text-muted-foreground">{{ t('notificationDescription') }}</p>
+      </div>
+      <Switch :model-value="localNotification" @update:model-value="localNotification = $event" />
+    </div>
+
+    <Separator />
+
     <!-- Auto Open Browser -->
     <div class="flex items-center justify-between gap-4">
       <div class="space-y-0.5">

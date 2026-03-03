@@ -1,165 +1,139 @@
-import { exec, spawn } from 'node:child_process'
+import { exec, execSync, spawn } from 'node:child_process'
 import { platform } from 'node:os'
-
-let browserOpened = false
-
-/**
- * Send a system notification to the user.
- */
-export function notify(message: string, title = 'Ask User Questions'): void {
-  const os = platform()
-
-  try {
-    if (os === 'darwin') {
-      const escaped = message.replace(/"/g, '\\"')
-      exec(`osascript -e 'display notification "${escaped}" with title "${title}"'`)
-    } else if (os === 'win32') {
-      const escaped = message.replace(/'/g, "''")
-      exec(
-        `powershell -command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('${escaped}','${title}')" `
-      )
-    } else {
-      exec(`notify-send "${title}" "${message}"`)
-    }
-  } catch {
-    // Notification is best-effort, ignore errors
-  }
-}
+import notifier from 'node-notifier'
 
 /**
- * Open a URL in the user's default browser.
+ * Chromium-based browsers supported for JXA tab reuse on macOS.
+ * Order matters — first match wins when checking `ps cax` output.
+ * (From Vite / create-react-app)
  */
-export function openBrowser(url: string): void {
-  const os = platform()
-
-  try {
-    if (os === 'darwin') {
-      exec(`open "${url}"`)
-    } else if (os === 'win32') {
-      exec(`start "" "${url}"`)
-    } else {
-      exec(`xdg-open "${url}"`)
-    }
-  } catch {
-    // Best-effort
-  }
-}
+const CHROMIUM_BROWSERS = [
+  'Google Chrome Canary',
+  'Google Chrome Dev',
+  'Google Chrome Beta',
+  'Google Chrome',
+  'Microsoft Edge',
+  'Brave Browser',
+  'Vivaldi',
+  'Chromium'
+]
 
 /**
- * Try to find and focus an existing browser tab on macOS.
- * Supports Google Chrome, Safari, and Microsoft Edge.
- * Falls back to opening a new browser tab if no existing tab is found.
+ * Send a system notification using node-notifier.
+ * When the user clicks the notification, the optional `onClick` callback is invoked.
  */
-function focusBrowserTabMac(url: string): void {
-  const urlSafe = url.replace(/"/g, '\\"')
-  const script = `set targetURL to "${urlSafe}"
-set found to false
-
-try
-  tell application "System Events"
-    if exists (process "Google Chrome") then
-      tell application "Google Chrome"
-        repeat with w in windows
-          set tabIdx to 0
-          repeat with t in tabs of w
-            set tabIdx to tabIdx + 1
-            if URL of t contains targetURL then
-              set active tab index of w to tabIdx
-              set index of w to 1
-              activate
-              set found to true
-              exit repeat
-            end if
-          end repeat
-          if found then exit repeat
-        end repeat
-      end tell
-    end if
-  end tell
-end try
-
-if not found then
-  try
-    tell application "System Events"
-      if exists (process "Safari") then
-        tell application "Safari"
-          repeat with w in windows
-            repeat with t in tabs of w
-              if URL of t contains targetURL then
-                set current tab of w to t
-                set index of w to 1
-                activate
-                set found to true
-                exit repeat
-              end if
-            end repeat
-            if found then exit repeat
-          end repeat
-        end tell
-      end if
-    end tell
-  end try
-end if
-
-if not found then
-  try
-    tell application "System Events"
-      if exists (process "Microsoft Edge") then
-        tell application "Microsoft Edge"
-          repeat with w in windows
-            set tabIdx to 0
-            repeat with t in tabs of w
-              set tabIdx to tabIdx + 1
-              if URL of t contains targetURL then
-                set active tab index of w to tabIdx
-                set index of w to 1
-                activate
-                set found to true
-                exit repeat
-              end if
-            end repeat
-            if found then exit repeat
-          end repeat
-        end tell
-      end if
-    end tell
-  end try
-end if
-
-if not found then
-  do shell script "open " & quoted form of "${urlSafe}"
-end if
-`
-  const child = spawn('osascript', ['-'], {
-    stdio: ['pipe', 'ignore', 'ignore'],
-    detached: true
+export function notify(message: string, title = 'Ask User Questions', onClick?: () => void): void {
+  const notification = notifier.notify({
+    title,
+    message,
+    sound: true,
+    wait: !!onClick
   })
-  child.stdin.write(script)
-  child.stdin.end()
-  child.unref()
+
+  if (onClick) {
+    notification.on('click', onClick)
+  }
 }
 
 /**
- * Open the browser on first call, then try to focus the existing tab on subsequent calls.
- * On macOS, uses AppleScript to find and activate the browser tab.
- * On other platforms, falls back to opening the URL again.
+ * Open a URL in the user's default browser (cross-platform fallback).
+ */
+function openDefault(url: string): void {
+  const os = platform()
+  try {
+    if (os === 'darwin') {
+      exec(`open ${JSON.stringify(url)}`)
+    } else if (os === 'win32') {
+      exec(`start "" ${JSON.stringify(url)}`)
+    } else {
+      exec(`xdg-open ${JSON.stringify(url)}`)
+    }
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * JXA (JavaScript for Automation) script to find and reuse an existing tab
+ * in a Chromium-based browser on macOS, or open a new tab if not found.
+ *
+ * Adapted from Vite / create-react-app's openChrome.js approach.
+ */
+function chromiumJxaScript(url: string, browser: string): string {
+  const safeUrl = url.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  const safeBrowser = browser.replace(/"/g, '\\"')
+  return `
+    var browser = Application("${safeBrowser}");
+    browser.activate();
+    var found = false;
+    var windows = browser.windows();
+    for (var i = 0; i < windows.length; i++) {
+      var tabs = windows[i].tabs();
+      for (var j = 0; j < tabs.length; j++) {
+        if (tabs[j].url().includes("${safeUrl}")) {
+          windows[i].activeTabIndex = j + 1;
+          windows[i].index = 1;
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+    if (!found) {
+      if (windows.length === 0) {
+        browser.Window().make();
+      }
+      var newTab = browser.Tab({ url: "${safeUrl}" });
+      browser.windows[0].tabs.push(newTab);
+      browser.windows[0].activeTabIndex = browser.windows[0].tabs.length;
+    }
+  `
+}
+
+/**
+ * Try to reuse an existing Chromium browser tab on macOS.
+ *
+ * 1. Check running processes via `ps cax` to find a Chromium browser
+ * 2. If found, run a JXA script that searches for a matching tab and focuses it
+ * 3. If no matching tab, opens a new tab in that browser
+ *
+ * Returns true if a Chromium browser was found (tab reuse attempted).
+ *
+ * Reference: Vite's `startBrowserProcess` implementation
+ * https://github.com/vitejs/vite/blob/main/packages/vite/src/node/server/openBrowser.ts
+ */
+function tryReuseChromiumTab(url: string): boolean {
+  if (platform() !== 'darwin') return false
+
+  try {
+    const ps = execSync('ps cax', { encoding: 'utf-8' })
+    const browser = CHROMIUM_BROWSERS.find((b) => ps.includes(b))
+    if (!browser) return false
+
+    // Run JXA via osascript, piping the script to stdin
+    const script = chromiumJxaScript(url, browser)
+    const child = spawn('osascript', ['-l', 'JavaScript'], {
+      stdio: ['pipe', 'ignore', 'ignore'],
+      detached: true
+    })
+    child.stdin.write(script)
+    child.stdin.end()
+    child.unref()
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Open the browser, attempting to reuse an existing tab.
+ *
+ * On macOS: try Chromium JXA tab reuse → fallback to `open`.
+ * On other platforms: use system default opener.
  */
 export function openOrFocusBrowser(url: string): void {
-  if (!browserOpened) {
-    openBrowser(url)
-    browserOpened = true
-    return
-  }
-
-  const os = platform()
-  try {
-    if (os === 'darwin') {
-      focusBrowserTabMac(url)
-    } else {
-      // On Windows/Linux, open again (may or may not reuse tab)
-      openBrowser(url)
-    }
-  } catch {
-    openBrowser(url)
+  const reused = tryReuseChromiumTab(url)
+  if (!reused) {
+    openDefault(url)
   }
 }

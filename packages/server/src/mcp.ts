@@ -137,13 +137,15 @@ export async function startMcp(serverUrl: string): Promise<void> {
         options: q.options
       }))
 
-      // Notify the user
+      // Notify the user — clicking the notification opens/focuses the browser
       const config = getConfig()
       const firstQ = subQuestions[0].question
       const preview = firstQ.slice(0, 80) + (firstQ.length > 80 ? '...' : '')
       const badge = subQuestions.length > 1 ? ` (+${subQuestions.length - 1} more)` : ''
       if (config.notification) {
-        notify(`AI asks: ${preview}${badge}`)
+        notify(`AI asks: ${preview}${badge}`, 'Ask User Questions', () => {
+          openOrFocusBrowser(serverUrl)
+        })
       }
 
       // Only open browser if no browser client is currently connected
