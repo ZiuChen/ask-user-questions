@@ -77,6 +77,7 @@ The project uses pnpm workspace with two packages:
   - [ws](https://github.com/websockets/ws) — WebSocket library
   - [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) — MCP SDK
   - [zod v4](https://zod.dev/) — Parameter validation
+  - [node-notifier](https://github.com/mikaelbr/node-notifier) — Cross-platform desktop notifications
   - TypeScript 5.9
 
 ### `packages/app` — Web UI
@@ -262,10 +263,12 @@ Configuration can be modified via:
 
 ### 7. Notify (`notify.ts`)
 
-System notifications and browser management:
+Desktop notifications and browser management:
 
-- **System notifications**: Desktop notification when a new question is created
-- **Browser singleton**: On macOS, uses AppleScript to find and focus existing browser tabs (supports Chrome/Safari/Edge). Opens a new tab if none found.
+- **Desktop notifications**: Uses [node-notifier](https://github.com/mikaelbr/node-notifier) for cross-platform desktop notifications (macOS terminal-notifier / Windows Snoretoast / Linux notify-send). Clicking the notification triggers a callback to open/focus the browser
+- **Chromium tab reuse**: On macOS, detects running Chromium browsers via `ps cax`, then uses JXA (JavaScript for Automation) to find and focus existing tabs or open a new one (adapted from [Vite's implementation](https://github.com/vitejs/vite/blob/main/packages/vite/src/node/server/openBrowser.ts))
+- **Supported Chromium browsers**: Google Chrome (and Canary/Dev/Beta), Microsoft Edge, Brave, Vivaldi, Chromium
+- **Cross-platform fallback**: On non-macOS or when no Chromium is running, uses system default commands (`open` / `start` / `xdg-open`)
 
 ### 8. Web App
 
@@ -308,7 +311,7 @@ packages/
 │       ├── mcp.ts       # MCP stdio + tool definitions (HTTP API proxy)
 │       ├── store.ts     # In-memory state + event pub/sub
 │       ├── config.ts    # Config file management
-│       ├── notify.ts    # System notifications + browser management
+│       ├── notify.ts    # Desktop notifications (node-notifier) + browser management
 │       ├── types.ts     # Type definitions
 │       └── index.ts     # Public API exports
 └── app/

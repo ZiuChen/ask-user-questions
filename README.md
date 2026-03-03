@@ -1,10 +1,10 @@
 # ask-user-questions
 
-一个 MCP (Model Context Protocol) 工具，允许 AI 模型通过本地 Web 界面向用户发起提问，实现 Human-in-the-loop 的交互模式。
+An MCP (Model Context Protocol) tool that allows AI models to ask users questions via a local web interface, enabling human-in-the-loop interactions.
 
-An MCP tool that allows AI models to ask users questions via a local web interface, enabling human-in-the-loop interactions.
+[中文文档](README.zh-CN.md)
 
-## 工作原理
+## How It Works
 
 ```
 ┌──────────┐  stdio  ┌──────────┐  HTTP   ┌────────────────┐  WebSocket  ┌──────────┐
@@ -15,46 +15,46 @@ An MCP tool that allows AI models to ask users questions via a local web interfa
                                           ▲ HTTP proxy  ▲
 ┌──────────┐  stdio  ┌──────────┐         │             │
 │ AI Model │◄───────►│ MCP STDIO│─────────┘             │
-│ (另一个)  │         │ (bin.mjs)│                       │
+│ (another) │         │ (bin.mjs)│                       │
 └──────────┘         └──────────┘               ┌───────┴──────┐
                                                 │    Store     │
-                                                │   (内存)      │
+                                                │  (in-memory) │
                                                 └──────────────┘
 ```
 
-1. **首个 MCP 启动**时，`bin.mjs` 自动 spawn 后台守护进程 `daemon.mjs`（HTTP + WebSocket 服务，端口 13390）
-2. **后续 MCP 启动**时，检测到守护进程已在运行，直接复用
-3. 所有 MCP 实例通过 HTTP API 代理到守护进程的 Store（创建问题 + 长轮询等待回答）
-4. 守护进程通过 WebSocket 将实时事件推送到浏览器
-5. 守护进程通过 WebSocket 连接数检测浏览器是否已打开，未打开时自动打开
+1. **First MCP launch**: `bin.mjs` auto-spawns a background daemon `daemon.mjs` (HTTP + WebSocket server on port 13390)
+2. **Subsequent MCP launches**: Detects the daemon is already running and reuses it
+3. All MCP instances proxy to the daemon's Store via HTTP API (create questions + long-poll for answers)
+4. The daemon pushes real-time events to the browser via WebSocket
+5. The daemon detects browser presence via WebSocket connection count—only opens the browser when no clients are connected
 
-## 特性
+## Features
 
-- **守护进程架构**：独立后台进程管理 HTTP/WS 服务，支持多个 MCP Client 同时连接
-- **批量提问**：一次最多发送 4 个子问题，支持单选/多选/自由文本
-- **丰富选项**：选项支持 label、description、recommended 标记
-- **自由文本**：每个子问题始终附带 "Other" 自由文本输入
-- **实时通信**：WebSocket 双向实时通信
-- **智能浏览器管理**：通过 WebSocket 连接数检测浏览器状态，仅在无客户端时自动打开
-- **浏览器单例**：macOS 上通过 AppleScript 聚焦已有标签页
-- **路由导航**：首页显示待回答问题列表 + 历史记录，详情页展示完整子问题
-- **系统通知**：跨平台系统通知（macOS / Windows / Linux）
-- **国际化**：支持 5 种语言（English、中文、한국어、日本語、Русский）
-- **深色模式**：跟随系统 / 浅色 / 深色三种主题
-- **响应式**：适配桌面和移动端
-- **可配置**：超时、通知开关、浏览器自动打开开关
+- **Daemon architecture**: Independent background process for HTTP/WS, supports multiple MCP clients simultaneously
+- **Batch questions**: Up to 4 sub-questions per call, with single/multi-select and free text
+- **Rich options**: Options support label, description, and recommended flags
+- **Free text**: Every sub-question always includes an "Other" free text input
+- **Real-time communication**: Bidirectional WebSocket
+- **Smart browser management**: Detects browser status via WebSocket connections; only auto-opens when no client is connected
+- **Chromium tab reuse**: On macOS, reuses existing browser tabs via JXA (supports Chrome, Edge, Brave, Vivaldi, Chromium)
+- **Desktop notifications**: Cross-platform notifications via [node-notifier](https://github.com/mikaelbr/node-notifier); click to open/focus browser
+- **Routed navigation**: Home page with pending questions + history; detail page for each question
+- **Internationalization**: 5 languages (English, 中文, 한국어, 日本語, Русский)
+- **Dark mode**: System / Light / Dark themes
+- **Responsive**: Desktop and mobile friendly
+- **Configurable**: Timeout, notification toggle, auto-open browser toggle
 
-## 快速开始
+## Quick Start
 
-### 安装
+### Install
 
 ```bash
 npm install -g ask-user-questions
-# 或
+# or
 npx ask-user-questions
 ```
 
-### 配置 MCP 客户端
+### Configure MCP Client
 
 **Claude Desktop** (`claude_desktop_config.json`):
 
@@ -82,35 +82,35 @@ npx ask-user-questions
 }
 ```
 
-## MCP 工具
+## MCP Tool
 
 ### `ask_user`
 
-向用户发起提问并等待回答。支持批量提问（1-4 个子问题），每个子问题可配置选项和多选模式。"Other" 自由文本输入始终可用，无需手动添加。
+Ask the user questions and wait for their response. Supports batch questions (1–4 sub-questions), each with configurable options and multi-select mode. An "Other" free text input is always available—no need to add it manually.
 
-**参数**:
+**Parameters**:
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `questions` | `SubQuestion[]` | ✅ | 1-4 个子问题的数组 |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `questions` | `SubQuestion[]` | ✅ | Array of 1–4 sub-questions |
 
-**SubQuestion 结构**:
+**SubQuestion**:
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `question` | `string` | ✅ | 问题文本 |
-| `multiSelect` | `boolean` | ❌ | 是否允许多选（默认 `false`） |
-| `options` | `Option[]` | ❌ | 预设选项（省略则仅显示自由文本输入） |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `question` | `string` | ✅ | Question text |
+| `multiSelect` | `boolean` | ❌ | Allow multiple selections (default `false`) |
+| `options` | `Option[]` | ❌ | Preset options (omit for free text only) |
 
-**Option 结构**:
+**Option**:
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `label` | `string` | ✅ | 选项标签 |
-| `description` | `string` | ❌ | 选项描述 |
-| `recommended` | `boolean` | ❌ | 标记为推荐选项 |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `label` | `string` | ✅ | Option label |
+| `description` | `string` | ❌ | Option description |
+| `recommended` | `boolean` | ❌ | Mark as recommended |
 
-**示例调用**:
+**Example**:
 
 ```json
 {
@@ -118,18 +118,18 @@ npx ask-user-questions
   "arguments": {
     "questions": [
       {
-        "question": "你希望使用哪种 API 风格？",
+        "question": "Which API style do you prefer?",
         "options": [
           { "label": "Composition API", "recommended": true },
           { "label": "Options API" }
         ]
       },
       {
-        "question": "需要支持哪些功能？",
+        "question": "Which features do you need?",
         "multiSelect": true,
         "options": [
-          { "label": "TypeScript", "description": "添加类型支持" },
-          { "label": "i18n", "description": "国际化支持" },
+          { "label": "TypeScript", "description": "Add type support" },
+          { "label": "i18n", "description": "Internationalization" },
           { "label": "Dark Mode" }
         ]
       }
@@ -138,9 +138,9 @@ npx ask-user-questions
 }
 ```
 
-## 配置
+## Configuration
 
-配置文件位于 `~/.ask-user-questions/config.json`，也可通过 Web 界面的设置页修改。
+Config file: `~/.ask-user-questions/config.json` (also editable via the Web UI settings panel).
 
 ```json
 {
@@ -150,90 +150,90 @@ npx ask-user-questions
 }
 ```
 
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `timeout` | `number` | `0` | 等待回答的超时时间（毫秒），0 = 无超时 |
-| `notification` | `boolean` | `true` | 是否显示系统通知 |
-| `autoOpenBrowser` | `boolean` | `true` | 是否自动打开浏览器 |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `timeout` | `number` | `0` | Timeout for waiting (ms), 0 = no timeout |
+| `notification` | `boolean` | `true` | Show desktop notifications |
+| `autoOpenBrowser` | `boolean` | `true` | Auto-open browser |
 
-## 开发
+## Development
 
-### 前置要求
+### Prerequisites
 
 - Node.js >= 20
 - pnpm >= 9
 
-### 本地开发
+### Local Development
 
 ```bash
-# 安装依赖
+# Install dependencies
 pnpm install
 
-# 启动 App 开发服务器 (带 HMR)
+# Start App dev server (with HMR)
 pnpm dev
 
-# 启动 Server 开发服务器 (仅 HTTP 服务)
+# Start Server dev server (HTTP only)
 pnpm dev:server
 
-# 构建所有包
+# Build all packages
 pnpm build
 
-# 类型检查
+# Type checking
 pnpm typecheck
 ```
 
-### 项目结构
+### Project Structure
 
 ```
 ask-user-questions/
 ├── packages/
 │   ├── server/       # Daemon + MCP Shell + HTTP Server
 │   │   └── src/
-│   │       ├── bin.ts       # MCP 入口：确保 Daemon 运行 + 启动 MCP STDIO
-│   │       ├── daemon.ts    # Daemon 入口：后台 HTTP+WS 服务
-│   │       ├── server.ts    # Hono + @hono/node-ws HTTP/WS 服务
-│   │       ├── mcp.ts       # MCP stdio 服务 + 工具定义（HTTP API 代理）
-│   │       ├── store.ts     # 内存状态管理 + 事件订阅
-│   │       ├── config.ts    # 配置文件管理
-│   │       ├── notify.ts    # 系统通知 + 浏览器管理
-│   │       ├── types.ts     # 类型定义
-│   │       └── index.ts     # 公共 API 导出
+│   │       ├── bin.ts       # MCP entry: ensure daemon + start MCP STDIO
+│   │       ├── daemon.ts    # Daemon entry: background HTTP+WS server
+│   │       ├── server.ts    # Hono + @hono/node-ws HTTP/WS server
+│   │       ├── mcp.ts       # MCP stdio + tool definitions (HTTP API proxy)
+│   │       ├── store.ts     # In-memory state + event pub/sub
+│   │       ├── config.ts    # Config file management
+│   │       ├── notify.ts    # Desktop notifications + browser management
+│   │       ├── types.ts     # Type definitions
+│   │       └── index.ts     # Public API exports
 │   └── app/          # Vue 3 Web UI
 │       └── src/
-│           ├── App.vue              # Shell 布局（顶栏 + router-view）
-│           ├── router.ts            # Vue Router 路由配置
-│           ├── pages/               # 页面组件
-│           │   ├── home.vue         # 首页：待回答列表 + 历史记录
-│           │   └── question-detail.vue # 问题详情页
-│           ├── components/          # UI 组件
-│           │   ├── question-card.vue  # 问题卡片（批量子问题）
-│           │   └── settings-panel.vue # 设置面板
+│           ├── App.vue              # Shell layout (header + router-view)
+│           ├── router.ts            # Vue Router config
+│           ├── pages/               # Page components
+│           │   ├── home.vue         # Home: pending list + history
+│           │   └── question-detail.vue # Question detail page
+│           ├── components/          # UI components
+│           │   ├── question-card.vue  # Question card (batch sub-questions)
+│           │   └── settings-panel.vue # Settings panel
 │           ├── composables/         # Vue composables
-│           │   ├── use-questions.ts  # 问题状态 + WebSocket
-│           │   └── use-dark-mode.ts  # 深色模式
+│           │   ├── use-questions.ts  # Question state + WebSocket
+│           │   └── use-dark-mode.ts  # Dark mode
 │           └── lib/
-│               ├── api.ts           # API 客户端 + WebSocket
-│               └── i18n.ts          # 国际化（5 种语言）
-├── docs/             # 架构文档
+│               ├── api.ts           # API client + WebSocket
+│               └── i18n.ts          # i18n (5 languages)
+├── docs/             # Architecture docs
 ├── .github/workflows # CI/CD
 └── pnpm-workspace.yaml
 ```
 
-更多细节请参考 [架构文档 (中文)](docs/architecture-zh.md) | [Architecture (English)](docs/architecture-en.md)
+See [Architecture (English)](docs/architecture-en.md) | [架构文档 (中文)](docs/architecture-zh.md) for details.
 
-## 发布
+## Publishing
 
-本项目使用 GitHub Actions + npm provenance (OIDC) 发布：
+This project uses GitHub Actions + npm provenance (OIDC):
 
 ```bash
-# 1. 更新版本号
+# 1. Bump version
 cd packages/server
-npm version patch  # 或 minor / major
+npm version patch  # or minor / major
 
-# 2. 推送 tag
+# 2. Push tag
 git push --follow-tags
 
-# 3. GitHub Actions 自动构建并发布到 npm
+# 3. GitHub Actions auto-builds and publishes to npm
 ```
 
 ## License

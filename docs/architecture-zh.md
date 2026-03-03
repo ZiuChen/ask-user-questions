@@ -77,6 +77,7 @@
   - [ws](https://github.com/websockets/ws) — WebSocket 底层库
   - [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) — MCP SDK
   - [zod v4](https://zod.dev/) — 参数校验
+  - [node-notifier](https://github.com/mikaelbr/node-notifier) — 跨平台桌面通知
   - TypeScript 5.9
 
 ### `packages/app` — Web UI
@@ -262,10 +263,12 @@ interface Config {
 
 ### 7. Notify (`notify.ts`)
 
-系统通知与浏览器管理：
+桌面通知与浏览器管理：
 
-- **系统通知**：当新问题创建时发送桌面通知
-- **浏览器单例**：macOS 下通过 AppleScript 查找并聚焦已有的浏览器标签页（支持 Chrome/Safari/Edge），若无已有标签则打开新标签
+- **桌面通知**：使用 [node-notifier](https://github.com/mikaelbr/node-notifier) 发送跨平台桌面通知（macOS terminal-notifier / Windows Snoretoast / Linux notify-send）。用户点击通知可触发回调打开/聚焦浏览器
+- **Chromium Tab 复用**：macOS 上通过 `ps cax` 检测运行中的 Chromium 浏览器，使用 JXA (JavaScript for Automation) 脚本查找并聚焦已有标签页或打开新标签（参考 [Vite 的实现](https://github.com/vitejs/vite/blob/main/packages/vite/src/node/server/openBrowser.ts)）
+- **支持的 Chromium 浏览器**：Google Chrome (及 Canary/Dev/Beta)、Microsoft Edge、Brave、Vivaldi、Chromium
+- **跨平台回退**：非 macOS 或无 Chromium 时，使用系统默认命令 (`open` / `start` / `xdg-open`)
 
 ### 8. Web App
 
@@ -308,7 +311,7 @@ packages/
 │       ├── mcp.ts       # MCP stdio + 工具定义（HTTP API 代理）
 │       ├── store.ts     # 内存状态 + 事件发布/订阅
 │       ├── config.ts    # 配置文件管理
-│       ├── notify.ts    # 系统通知 + 浏览器管理
+│       ├── notify.ts    # 桌面通知 (node-notifier) + 浏览器管理
 │       ├── types.ts     # 类型定义
 │       └── index.ts     # 公共 API 导出
 └── app/
