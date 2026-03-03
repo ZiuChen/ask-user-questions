@@ -18,7 +18,7 @@ import {
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 
-const props = defineProps<{
+const { config } = defineProps<{
   config: AppConfig
 }>()
 
@@ -27,11 +27,11 @@ const { theme, setTheme } = useDarkMode()
 
 const saving = ref(false)
 const saved = ref(false)
-const localTimeout = ref(props.config.timeout)
-const localAutoOpenBrowser = ref(props.config.autoOpenBrowser)
+const localTimeout = ref(config.timeout)
+const localAutoOpenBrowser = ref(config.autoOpenBrowser)
 
 watch(
-  () => props.config,
+  () => config,
   (c) => {
     localTimeout.value = c.timeout
     localAutoOpenBrowser.value = c.autoOpenBrowser

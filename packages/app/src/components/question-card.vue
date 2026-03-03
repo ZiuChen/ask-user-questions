@@ -8,7 +8,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 
-const props = defineProps<{
+const { question } = defineProps<{
   question: Question
   pendingCount: number
 }>()
@@ -20,15 +20,15 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const selections = reactive<string[][]>(props.question.questions.map(() => []))
-const otherTexts = reactive<string[]>(props.question.questions.map(() => ''))
-const otherActive = reactive<boolean[]>(props.question.questions.map((sq) => !sq.options?.length))
+const selections = reactive<string[][]>(question.questions.map(() => []))
+const otherTexts = reactive<string[]>(question.questions.map(() => ''))
+const otherActive = reactive<boolean[]>(question.questions.map((sq) => !sq.options?.length))
 const submitting = ref(false)
 
 watch(
-  () => props.question.id,
+  () => question.id,
   () => {
-    props.question.questions.forEach((sq, i) => {
+    question.questions.forEach((sq, i) => {
       selections[i] = []
       otherTexts[i] = ''
       otherActive[i] = !sq.options?.length
@@ -37,7 +37,7 @@ watch(
 )
 
 function toggleOption(qIdx: number, label: string) {
-  const sq = props.question.questions[qIdx]
+  const sq = question.questions[qIdx]
   if (sq.multiSelect) {
     const idx = selections[qIdx].indexOf(label)
     if (idx >= 0) selections[qIdx].splice(idx, 1)
@@ -54,7 +54,7 @@ function toggleOption(qIdx: number, label: string) {
 }
 
 function toggleOther(qIdx: number) {
-  const sq = props.question.questions[qIdx]
+  const sq = question.questions[qIdx]
   otherActive[qIdx] = !otherActive[qIdx]
   if (!sq.multiSelect && otherActive[qIdx]) selections[qIdx] = []
   if (!otherActive[qIdx]) otherTexts[qIdx] = ''
@@ -65,7 +65,7 @@ function isSelected(qIdx: number, label: string): boolean {
 }
 
 const canSubmit = computed(() =>
-  props.question.questions.every(
+  question.questions.every(
     (_, idx) => selections[idx].length > 0 || otherTexts[idx].trim().length > 0
   )
 )
@@ -73,11 +73,11 @@ const canSubmit = computed(() =>
 async function handleSubmit() {
   if (!canSubmit.value) return
   submitting.value = true
-  const answers: SubQuestionAnswer[] = props.question.questions.map((_, idx) => ({
+  const answers: SubQuestionAnswer[] = question.questions.map((_, idx) => ({
     selected: [...selections[idx]],
     freeText: otherTexts[idx].trim() || undefined
   }))
-  emit('answer', props.question.id, answers)
+  emit('answer', question.id, answers)
   submitting.value = false
 }
 
