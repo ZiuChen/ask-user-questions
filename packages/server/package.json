@@ -1,6 +1,6 @@
 {
   "name": "ask-user-questions",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "An MCP tool that allows AI models to ask users questions via a local web interface.",
   "author": "",
