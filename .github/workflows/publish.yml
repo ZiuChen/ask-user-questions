@@ -32,6 +32,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Copy README to server package
+        run: cp -f README.md packages/server/README.md
+
       - name: Publish to npm with provenance
         run: pnpm --filter ask-user-questions publish --provenance --access public --no-git-checks
         env:
