@@ -41,7 +41,7 @@ function formatTime(iso: string): string {
         v-if="pendingQuestions.length === 0"
         class="flex flex-col items-center justify-center py-20 text-center max-w-sm mx-auto"
       >
-        <span class="icon-[mdi--chat-question-outline] size-12 text-muted-foreground/30 mb-4" />
+        <img class="size-12 draggable-none opacity-30 mb-4" src="/logo.png" alt="logo" />
         <h2 class="text-lg font-medium text-muted-foreground">{{ t('noQuestionsYet') }}</h2>
         <p class="text-sm text-muted-foreground/70 mt-2">
           {{ t('noQuestionsDescription') }}

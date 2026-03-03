@@ -35,7 +35,7 @@ const themeIcon = computed(() => {
           :to="{ name: 'home' }"
           class="flex items-center gap-2 no-underline text-foreground"
         >
-          <span class="icon-[mdi--chat-question] size-5 text-primary" />
+          <img class="size-5 draggable-none" src="/logo.png" alt="logo" />
           <span class="text-sm font-semibold">{{ t('appTitle') }}</span>
           <Tooltip>
             <TooltipTrigger as-child>
