@@ -263,6 +263,11 @@ export async function startServer(port: number): Promise<{ url: string; isLocal:
 
   injectWebSocket(server)
 
+  // Disable default timeouts — long-poll requests (e.g. /api/questions/:id/wait)
+  // can last indefinitely when timeout=0 is configured.
+  server.requestTimeout = 0
+  server.headersTimeout = 0
+
   await new Promise<void>((resolve) => {
     server.listen(port, () => resolve())
   })

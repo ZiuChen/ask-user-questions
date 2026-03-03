@@ -44,12 +44,36 @@ async function remoteAskUser(
   }
   const question = (await createRes.json()) as { id: string }
 
-  const waitRes = await fetch(`${serverUrl}/api/questions/${question.id}/wait`)
-  if (!waitRes.ok) {
-    throw new Error(`Failed to wait for answer: ${waitRes.status} ${await waitRes.text()}`)
+  // Long-poll with retry — the connection may drop due to network issues,
+  // proxy timeouts, or other transient errors. Retry until we get an answer.
+  while (true) {
+    try {
+      const waitRes = await fetch(`${serverUrl}/api/questions/${question.id}/wait`)
+      if (!waitRes.ok) {
+        throw new Error(`Failed to wait for answer: ${waitRes.status} ${await waitRes.text()}`)
+      }
+      const { answers } = (await waitRes.json()) as { answers: SubQuestionAnswer[] }
+      return { id: question.id, answers }
+    } catch (err) {
+      // Check if the question was already answered (e.g. connection dropped after answer)
+      try {
+        const checkRes = await fetch(`${serverUrl}/api/questions/${question.id}`)
+        if (checkRes.ok) {
+          const q = (await checkRes.json()) as { status: string; answers?: SubQuestionAnswer[] }
+          if (q.status !== 'pending' && q.answers) {
+            return { id: question.id, answers: q.answers }
+          }
+        }
+      } catch {
+        // Server might be temporarily unreachable
+      }
+      console.error(
+        `[ask-user-questions] Long-poll interrupted, retrying in 1s...`,
+        (err as Error).message
+      )
+      await new Promise((r) => setTimeout(r, 1000))
+    }
   }
-  const { answers } = (await waitRes.json()) as { answers: SubQuestionAnswer[] }
-  return { id: question.id, answers }
 }
 
 /** Check if there are browser clients connected to the server */
