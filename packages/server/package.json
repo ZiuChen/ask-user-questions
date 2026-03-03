@@ -42,5 +42,15 @@
     "@types/ws": "^8.18.1",
     "tsdown": "0.21.0-beta.2",
     "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "repository": {
+    "url": "https://github.com/ZiuChen/ask-user-questions"
   }
 }
