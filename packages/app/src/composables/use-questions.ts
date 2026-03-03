@@ -1,4 +1,14 @@
-import { type InjectionKey, type Ref, inject, onMounted, onUnmounted, provide, ref } from 'vue'
+import {
+  type InjectionKey,
+  type Ref,
+  computed,
+  inject,
+  onMounted,
+  onUnmounted,
+  provide,
+  ref,
+  watch
+} from 'vue'
 import {
   type AppConfig,
   type Question,
@@ -6,6 +16,8 @@ import {
   connectWS,
   submitAnswer
 } from '@/lib/api'
+import { useTitleFlash } from './use-title-flash'
+import { useDocumentVisibility, useFavicon } from '@vueuse/core'
 
 export interface QuestionsContext {
   questions: Ref<Question[]>
@@ -28,8 +40,22 @@ export function provideQuestions(): QuestionsContext {
   const connected = ref(false)
   const error = ref<string | null>(null)
   let wsConnection: { close: () => void } | null = null
-  let titleFlashTimer: ReturnType<typeof setInterval> | undefined
-  const originalTitle = document.title
+
+  const visibility = useDocumentVisibility()
+  const { start, stop } = useTitleFlash()
+
+  watch(visibility, (visibility) => {
+    if (visibility === 'visible') {
+      stop()
+    }
+  })
+
+  useFavicon(
+    computed(() => {
+      const hasPending = questions.value.some((q) => q.status === 'pending')
+      return hasPending ? '/logo-dot.png' : '/logo.png'
+    })
+  )
 
   function upsertQuestion(question: Question) {
     const index = questions.value.findIndex((q) => q.id === question.id)
@@ -37,29 +63,6 @@ export function provideQuestions(): QuestionsContext {
       questions.value[index] = question
     } else {
       questions.value.unshift(question)
-    }
-  }
-
-  function startTitleFlash(text: string) {
-    stopTitleFlash()
-    let show = true
-    titleFlashTimer = setInterval(() => {
-      document.title = show ? `🔔 ${text}` : originalTitle
-      show = !show
-    }, 1000)
-  }
-
-  function stopTitleFlash() {
-    if (titleFlashTimer !== undefined) {
-      clearInterval(titleFlashTimer)
-      titleFlashTimer = undefined
-      document.title = originalTitle
-    }
-  }
-
-  function handleVisibilityChange() {
-    if (!document.hidden) {
-      stopTitleFlash()
     }
   }
 
@@ -72,20 +75,20 @@ export function provideQuestions(): QuestionsContext {
       },
       onCreated(question) {
         upsertQuestion(question)
-        if (document.hidden) {
+        if (visibility.value === 'hidden') {
           const preview = question.questions[0]?.question.slice(0, 30) || 'New Question'
-          startTitleFlash(preview)
+          start(preview)
         }
       },
       onAnswered(question) {
         upsertQuestion(question)
-        stopTitleFlash()
+        stop()
       },
       onRemind(question) {
         upsertQuestion(question)
-        if (document.hidden) {
+        if (visibility.value === 'hidden') {
           const preview = question.questions[0]?.question.slice(0, 30) || 'New Question'
-          startTitleFlash(preview)
+          start(preview)
         }
       },
       onConfigUpdated(newConfig) {
@@ -113,13 +116,10 @@ export function provideQuestions(): QuestionsContext {
 
   onMounted(() => {
     connect()
-    document.addEventListener('visibilitychange', handleVisibilityChange)
   })
 
   onUnmounted(() => {
     wsConnection?.close()
-    stopTitleFlash()
-    document.removeEventListener('visibilitychange', handleVisibilityChange)
   })
 
   const ctx: QuestionsContext = { questions, config, connected, error, answer }

@@ -69,7 +69,10 @@ function formatTimeout(ms: number): string {
         <p class="text-sm font-medium">{{ t('autoOpenBrowser') }}</p>
         <p class="text-xs text-muted-foreground">{{ t('autoOpenBrowserDescription') }}</p>
       </div>
-      <Switch :checked="localAutoOpenBrowser" @update:checked="localAutoOpenBrowser = $event" />
+      <Switch
+        :model-value="localAutoOpenBrowser"
+        @update:model-value="localAutoOpenBrowser = $event"
+      />
     </div>
 
     <Separator />
