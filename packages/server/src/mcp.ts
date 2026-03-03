@@ -3,7 +3,6 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { getConfig } from './config.js'
 import { notify, openOrFocusBrowser } from './notify.js'
-import { store } from './store.js'
 import type { SubQuestion, SubQuestionAnswer } from './types.js'
 
 function formatAnswers(questions: SubQuestion[], answers: SubQuestionAnswer[]): string {
@@ -28,6 +27,43 @@ function formatAnswers(questions: SubQuestion[], answers: SubQuestionAnswer[]): 
     null,
     2
   )
+}
+
+/** Create a question and wait for answer via the HTTP server */
+async function remoteAskUser(
+  serverUrl: string,
+  subQuestions: SubQuestion[]
+): Promise<{ id: string; answers: SubQuestionAnswer[] }> {
+  const createRes = await fetch(`${serverUrl}/api/questions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ questions: subQuestions })
+  })
+  if (!createRes.ok) {
+    throw new Error(`Failed to create question: ${createRes.status} ${await createRes.text()}`)
+  }
+  const question = (await createRes.json()) as { id: string }
+
+  const waitRes = await fetch(`${serverUrl}/api/questions/${question.id}/wait`)
+  if (!waitRes.ok) {
+    throw new Error(`Failed to wait for answer: ${waitRes.status} ${await waitRes.text()}`)
+  }
+  const { answers } = (await waitRes.json()) as { answers: SubQuestionAnswer[] }
+  return { id: question.id, answers }
+}
+
+/** Check if there are browser clients connected to the server */
+async function hasBrowserClients(serverUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${serverUrl}/api/health`, {
+      signal: AbortSignal.timeout(2000)
+    })
+    if (!res.ok) return false
+    const data = (await res.json()) as { browserClients?: number }
+    return (data.browserClients ?? 0) > 0
+  } catch {
+    return false
+  }
 }
 
 export async function startMcp(serverUrl: string): Promise<void> {
@@ -71,17 +107,13 @@ export async function startMcp(serverUrl: string): Promise<void> {
         .describe('Array of 1-4 questions to ask the user')
     },
     async ({ questions }) => {
-      // Normalize sub-questions
       const subQuestions: SubQuestion[] = questions.map((q) => ({
         question: q.question,
         multiSelect: q.multiSelect ?? false,
         options: q.options
       }))
 
-      // Create question group in store
-      const q = store.createQuestion(subQuestions)
-
-      // Notify the user (respects config)
+      // Notify the user
       const config = getConfig()
       const firstQ = subQuestions[0].question
       const preview = firstQ.slice(0, 80) + (firstQ.length > 80 ? '...' : '')
@@ -89,22 +121,23 @@ export async function startMcp(serverUrl: string): Promise<void> {
       if (config.notification) {
         notify(`AI asks: ${preview}${badge}`)
       }
+
+      // Only open browser if no browser client is currently connected
       if (config.autoOpenBrowser) {
-        openOrFocusBrowser(serverUrl)
+        const hasClients = await hasBrowserClients(serverUrl)
+        if (!hasClients) {
+          openOrFocusBrowser(serverUrl)
+        }
       }
 
-      console.error(
-        `[ask-user-questions] Question group created: ${q.id} (${subQuestions.length} questions)`
-      )
+      // Always proxy through the daemon HTTP server
+      console.error(`[ask-user-questions] Creating question (${subQuestions.length} sub-questions)`)
       console.error(`[ask-user-questions] Waiting for user answers...`)
-
-      // Block until the user answers (or timeout)
-      const answers = await store.waitForAnswer(q.id)
-
-      console.error(`[ask-user-questions] Answers received for: ${q.id}`)
+      const result = await remoteAskUser(serverUrl, subQuestions)
+      console.error(`[ask-user-questions] Answers received for: ${result.id}`)
 
       return {
-        content: [{ type: 'text' as const, text: formatAnswers(subQuestions, answers) }]
+        content: [{ type: 'text' as const, text: formatAnswers(subQuestions, result.answers) }]
       }
     }
   )

@@ -23,8 +23,3 @@ export interface Question {
   createdAt: string
   answeredAt?: string
 }
-
-export interface SSEEvent {
-  event: string
-  data: string
-}

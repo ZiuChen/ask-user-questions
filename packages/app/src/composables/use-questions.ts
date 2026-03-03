@@ -3,8 +3,7 @@ import {
   type AppConfig,
   type Question,
   type SubQuestionAnswer,
-  connectSSE,
-  fetchQuestions,
+  connectWS,
   submitAnswer
 } from '@/lib/api'
 
@@ -14,13 +13,12 @@ export interface QuestionsContext {
   connected: Ref<boolean>
   error: Ref<string | null>
   answer: (questionId: string, answers: SubQuestionAnswer[]) => Promise<void>
-  refresh: () => Promise<void>
 }
 
 const QUESTIONS_KEY: InjectionKey<QuestionsContext> = Symbol('questions')
 
 /**
- * Initialize the SSE connection and global question state.
+ * Initialize the WebSocket connection and global question state.
  * Should be called ONCE in the root component (App.vue).
  * Provides global state via Vue's provide/inject.
  */
@@ -29,7 +27,7 @@ export function provideQuestions(): QuestionsContext {
   const config = ref<AppConfig>({ timeout: 0, notification: true, autoOpenBrowser: true })
   const connected = ref(false)
   const error = ref<string | null>(null)
-  let eventSource: EventSource | null = null
+  let wsConnection: { close: () => void } | null = null
   let titleFlashTimer: ReturnType<typeof setInterval> | undefined
   const originalTitle = document.title
 
@@ -66,11 +64,10 @@ export function provideQuestions(): QuestionsContext {
   }
 
   function connect() {
-    eventSource = connectSSE({
+    wsConnection = connectWS({
       onInit(initialQuestions, initialConfig) {
         questions.value = initialQuestions
         config.value = initialConfig
-        connected.value = true
         error.value = null
       },
       onCreated(question) {
@@ -85,7 +82,6 @@ export function provideQuestions(): QuestionsContext {
         stopTitleFlash()
       },
       onRemind(question) {
-        // Keep the question data fresh and flash title if page is hidden
         upsertQuestion(question)
         if (document.hidden) {
           const preview = question.questions[0]?.question.slice(0, 30) || 'New Question'
@@ -95,7 +91,11 @@ export function provideQuestions(): QuestionsContext {
       onConfigUpdated(newConfig) {
         config.value = newConfig
       },
-      onError() {
+      onConnected() {
+        connected.value = true
+        error.value = null
+      },
+      onDisconnected() {
         connected.value = false
         error.value = 'connectionLost'
       }
@@ -111,28 +111,18 @@ export function provideQuestions(): QuestionsContext {
     }
   }
 
-  async function refresh() {
-    try {
-      questions.value = await fetchQuestions()
-      error.value = null
-    } catch {
-      // Silently fail - SSE init will provide data
-    }
-  }
-
   onMounted(() => {
-    refresh()
     connect()
     document.addEventListener('visibilitychange', handleVisibilityChange)
   })
 
   onUnmounted(() => {
-    eventSource?.close()
+    wsConnection?.close()
     stopTitleFlash()
     document.removeEventListener('visibilitychange', handleVisibilityChange)
   })
 
-  const ctx: QuestionsContext = { questions, config, connected, error, answer, refresh }
+  const ctx: QuestionsContext = { questions, config, connected, error, answer }
   provide(QUESTIONS_KEY, ctx)
   return ctx
 }

@@ -7,24 +7,37 @@ An MCP tool that allows AI models to ask users questions via a local web interfa
 ## 工作原理
 
 ```
-┌──────────────┐    stdio     ┌─────────────────┐    HTTP     ┌──────────────┐
-│  AI Model    │◄────────────►│  Server (MCP)    │◄───────────►│  Web App UI  │
-│  (e.g. Claude)│              │  localhost:13390 │             │  (Browser)   │
-└──────────────┘              └─────────────────┘              └──────────────┘
+┌──────────┐  stdio  ┌──────────┐  HTTP   ┌────────────────┐  WebSocket  ┌──────────┐
+│ AI Model │◄───────►│ MCP STDIO│────────►│ Daemon Server  │◄───────────►│ Web App  │
+│ (Claude, │         │ (bin.mjs)│ proxy   │ (daemon.mjs)   │             │ (Browser)│
+│  GPT...) │         └──────────┘         │ localhost:13390│             └──────────┘
+└──────────┘                              └────────────────┘
+                                          ▲ HTTP proxy  ▲
+┌──────────┐  stdio  ┌──────────┐         │             │
+│ AI Model │◄───────►│ MCP STDIO│─────────┘             │
+│ (另一个)  │         │ (bin.mjs)│                       │
+└──────────┘         └──────────┘               ┌───────┴──────┐
+                                                │    Store     │
+                                                │   (内存)      │
+                                                └──────────────┘
 ```
 
-1. AI 模型通过 MCP 协议调用 `ask_user` 工具
-2. Server 创建提问并发送系统通知，自动打开/聚焦浏览器标签页
-3. 用户在 Web 界面看到问题并提交回答
-4. 回答通过 HTTP API 回传给 Server，Server 再通过 stdio 返回给模型
+1. **首个 MCP 启动**时，`bin.mjs` 自动 spawn 后台守护进程 `daemon.mjs`（HTTP + WebSocket 服务，端口 13390）
+2. **后续 MCP 启动**时，检测到守护进程已在运行，直接复用
+3. 所有 MCP 实例通过 HTTP API 代理到守护进程的 Store（创建问题 + 长轮询等待回答）
+4. 守护进程通过 WebSocket 将实时事件推送到浏览器
+5. 守护进程通过 WebSocket 连接数检测浏览器是否已打开，未打开时自动打开
 
 ## 特性
 
+- **守护进程架构**：独立后台进程管理 HTTP/WS 服务，支持多个 MCP Client 同时连接
 - **批量提问**：一次最多发送 4 个子问题，支持单选/多选/自由文本
 - **丰富选项**：选项支持 label、description、recommended 标记
 - **自由文本**：每个子问题始终附带 "Other" 自由文本输入
-- **实时通信**：SSE 实时推送 + REST API 降级
+- **实时通信**：WebSocket 双向实时通信
+- **智能浏览器管理**：通过 WebSocket 连接数检测浏览器状态，仅在无客户端时自动打开
 - **浏览器单例**：macOS 上通过 AppleScript 聚焦已有标签页
+- **路由导航**：首页显示待回答问题列表 + 历史记录，详情页展示完整子问题
 - **系统通知**：跨平台系统通知（macOS / Windows / Linux）
 - **国际化**：支持 5 种语言（English、中文、한국어、日本語、Русский）
 - **深色模式**：跟随系统 / 浅色 / 深色三种主题
@@ -174,11 +187,12 @@ pnpm typecheck
 ```
 ask-user-questions/
 ├── packages/
-│   ├── server/       # MCP Shell + HTTP Server
+│   ├── server/       # Daemon + MCP Shell + HTTP Server
 │   │   └── src/
-│   │       ├── bin.ts       # 入口：启动 Server + MCP
-│   │       ├── server.ts    # Hono + srvx HTTP 服务
-│   │       ├── mcp.ts       # MCP stdio 服务 + 工具定义
+│   │       ├── bin.ts       # MCP 入口：确保 Daemon 运行 + 启动 MCP STDIO
+│   │       ├── daemon.ts    # Daemon 入口：后台 HTTP+WS 服务
+│   │       ├── server.ts    # Hono + @hono/node-ws HTTP/WS 服务
+│   │       ├── mcp.ts       # MCP stdio 服务 + 工具定义（HTTP API 代理）
 │   │       ├── store.ts     # 内存状态管理 + 事件订阅
 │   │       ├── config.ts    # 配置文件管理
 │   │       ├── notify.ts    # 系统通知 + 浏览器管理
@@ -186,16 +200,19 @@ ask-user-questions/
 │   │       └── index.ts     # 公共 API 导出
 │   └── app/          # Vue 3 Web UI
 │       └── src/
-│           ├── App.vue              # 主布局
+│           ├── App.vue              # Shell 布局（顶栏 + router-view）
+│           ├── router.ts            # Vue Router 路由配置
+│           ├── pages/               # 页面组件
+│           │   ├── home.vue         # 首页：待回答列表 + 历史记录
+│           │   └── question-detail.vue # 问题详情页
 │           ├── components/          # UI 组件
-│           │   ├── QuestionCard.vue # 问题卡片（批量子问题）
-│           │   ├── QuestionList.vue # 问题列表
-│           │   └── SettingsPanel.vue # 设置面板
+│           │   ├── question-card.vue  # 问题卡片（批量子问题）
+│           │   └── settings-panel.vue # 设置面板
 │           ├── composables/         # Vue composables
-│           │   ├── useQuestions.ts   # 问题状态 + SSE
-│           │   └── useDarkMode.ts   # 深色模式
+│           │   ├── use-questions.ts  # 问题状态 + WebSocket
+│           │   └── use-dark-mode.ts  # 深色模式
 │           └── lib/
-│               ├── api.ts           # API 客户端
+│               ├── api.ts           # API 客户端 + WebSocket
 │               └── i18n.ts          # 国际化（5 种语言）
 ├── docs/             # 架构文档
 ├── .github/workflows # CI/CD

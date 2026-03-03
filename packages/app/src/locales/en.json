@@ -49,5 +49,8 @@
   "theme": "Theme",
   "light": "Light",
   "dark": "Dark",
-  "system": "System"
+  "system": "System",
+
+  "back": "Back",
+  "questionNotFound": "Question not found"
 }

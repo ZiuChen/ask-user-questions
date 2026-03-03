@@ -1,85 +1,120 @@
-# Architecture Guide
+# Architecture
 
-> This document is intended for first-time contributors to help them quickly understand the project architecture and core design decisions.
+> This document is for developers new to the project, to help quickly understand the project architecture and core design.
 
 ## Project Overview
 
-`ask-user-questions` is a Human-in-the-loop tool based on MCP (Model Context Protocol). It allows AI models to ask users **batch questions** (1–4 sub-questions) during execution and wait for answers submitted through a Web UI before returning results to the model.
+`ask-user-questions` is a Human-in-the-loop tool based on MCP (Model Context Protocol). It allows AI models to ask users **batch questions** (1–4 sub-questions) during execution, wait for the user to answer in a Web UI, and then return the results to the model.
 
 ### Core Principles
 
-- **Local-first**: All data is stored in memory, no cloud services required
-- **Zero-config**: Users just install the npm package and configure their MCP client
-- **Real-time**: Uses SSE (Server-Sent Events) for real-time browser-server synchronization
-- **Internationalized**: Built-in support for 5 languages (en, zh-CN, ko, ja, ru), auto-detected from browser
+- **Local-first**: All data stored in memory, no cloud dependencies
+- **Zero-config**: Users only need to install the npm package and configure their MCP client
+- **Daemon architecture**: Independent background HTTP+WebSocket server, supporting multiple MCP clients simultaneously
+- **Real-time communication**: WebSocket for bidirectional real-time data sync between browser and server
+- **Internationalization**: Built-in 5 languages (en, zh-CN, ko, ja, ru), auto-detects browser language
 
 ## Overall Architecture
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│                    User's Machine (localhost)                   │
-│                                                                │
-│  ┌──────────┐   stdio    ┌──────────────────────────────────┐  │
-│  │ AI Model │◄──────────►│         Server Process            │  │
-│  │ (Claude, │            │                                  │  │
-│  │  GPT...) │            │  ┌────────┐    ┌─────────────┐  │  │
-│  └──────────┘            │  │  MCP   │    │  HTTP Server │  │  │
-│                          │  │ Server │    │  (Hono+srvx) │  │  │
-│                          │  │(stdio) │    │  :13390      │  │  │
-│                          │  └───┬────┘    └──────┬───────┘  │  │
-│                          │      │    ┌───────┐   │          │  │
-│                          │      └───►│ Store │◄──┘          │  │
-│                          │           │(memory)│              │  │
-│                          │           └───┬───┘              │  │
-│                          │               │                  │  │
-│                          │         ┌─────▼─────┐            │  │
-│                          │         │  Config   │            │  │
-│                          │         │(~/.ask-*) │            │  │
-│                          │         └───────────┘            │  │
-│                          └──────────────────────────────────┘  │
-│                                          │                     │
-│                                   HTTP + SSE + REST            │
-│                                          │                     │
-│                          ┌───────────────▼──────────────────┐  │
-│                          │        Browser (Web App)          │  │
-│                          │   Vue 3 + ShadcnVue + i18n       │  │
-│                          │   Dark Mode · Browser Notifs     │  │
-│                          └──────────────────────────────────┘  │
-└────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                        User's Machine (localhost)                   │
+│                                                                    │
+│  ┌──────────┐  stdio  ┌──────────┐   HTTP proxy                   │
+│  │ AI Model │◄───────►│ bin.mjs  │──────────────┐                 │
+│  │ (Claude) │         │ (MCP)    │              │                 │
+│  └──────────┘         └──────────┘              │                 │
+│                                                  ▼                 │
+│  ┌──────────┐  stdio  ┌──────────┐     ┌────────────────────┐     │
+│  │ AI Model │◄───────►│ bin.mjs  │────►│  Daemon Server     │     │
+│  │ (GPT...) │         │ (MCP)    │     │  (daemon.mjs)      │     │
+│  └──────────┘         └──────────┘     │  localhost:13390    │     │
+│                                         │                    │     │
+│                  spawn if not running   │  ┌──────────────┐  │     │
+│                  ──────────────────────►│  │    Store     │  │     │
+│                                         │  │  (in-memory) │  │     │
+│                                         │  └──────┬───────┘  │     │
+│                                         │         │          │     │
+│                                         │  ┌──────▼───────┐  │     │
+│                                         │  │   Config     │  │     │
+│                                         │  │ (~/.ask-*)   │  │     │
+│                                         │  └──────────────┘  │     │
+│                                         └────────────────────┘     │
+│                                                  │                 │
+│                                           WebSocket + HTTP         │
+│                                                  │                 │
+│                          ┌───────────────────────▼──────────────┐  │
+│                          │         Browser (Web App)             │  │
+│                          │  Vue 3 + vue-router + ShadcnVue      │  │
+│                          │  WebSocket · i18n · Dark Mode         │  │
+│                          └──────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────┘
 ```
+
+### Key Design: Daemon Architecture
+
+**Problem**: When multiple MCP clients (e.g., Claude Desktop + VS Code Copilot) are used simultaneously, each starts an independent MCP process. If the HTTP server is embedded in the MCP process, only the first process to grab the port can serve the Web UI — questions from other processes won't appear in the frontend.
+
+**Solution**: Extract the HTTP+WebSocket server into an independent daemon process (`daemon.mjs`). All MCP instances proxy to the daemon via HTTP API:
+
+1. `bin.mjs` (MCP entry) checks `http://localhost:13390/api/health` on startup
+2. If the daemon is not running, spawns a detached `daemon.mjs` child process
+3. Polls until the daemon is ready (up to 5 seconds)
+4. MCP tool calls are routed to the daemon's Store via HTTP API
+5. The daemon writes a PID file (`~/.ask-user-questions/server.pid`) and cleans up on exit
 
 ## Monorepo Structure
 
-The project uses pnpm workspaces and contains two packages:
+The project uses pnpm workspace with two packages:
 
-### `packages/server` — MCP Shell
+### `packages/server` — Daemon + MCP Shell
 
-- **Role**: MCP server + local HTTP server
-- **Published to npm**: Yes (users run via `npx ask-user-questions`)
-- **Tech Stack**:
+- **Role**: MCP server + background HTTP/WebSocket daemon
+- **Published to npm**: Yes (users run `npx ask-user-questions`)
+- **Tech stack**:
   - [hono](https://hono.dev/) — HTTP framework
-  - [srvx](https://srvx.unjs.io/) — Universal HTTP server
+  - [@hono/node-ws](https://github.com/honojs/middleware/tree/main/packages/node-ws) — WebSocket support
+  - [ws](https://github.com/websockets/ws) — WebSocket library
   - [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) — MCP SDK
-  - [zod v4](https://zod.dev/) — Schema validation
+  - [zod v4](https://zod.dev/) — Parameter validation
   - TypeScript 5.9
 
 ### `packages/app` — Web UI
 
 - **Role**: User interaction interface
-- **Published to npm**: No (build output is embedded in server package)
-- **Tech Stack**:
+- **Published to npm**: No (build output embedded in Server package)
+- **Tech stack**:
   - [Vue 3](https://vuejs.org/) — UI framework
+  - [vue-router](https://router.vuejs.org/) — Routing
   - [ShadcnVue](https://www.shadcn-vue.com/) — UI component library
   - [Tailwind CSS v4](https://tailwindcss.com/) (`@tailwindcss/vite`) — CSS framework
   - [Vite 7](https://vitejs.dev/) — Build tool
 
 ## Core Modules
 
-### 1. Entry Point (`bin.ts`)
+### 1. Daemon Entry (`daemon.ts`)
 
-Starts both the MCP stdio server and the HTTP server (port 13390).
+Standalone background daemon entry point. Takes a port argument, starts the HTTP+WebSocket server, and writes a PID file:
 
-### 2. MCP Server (`mcp.ts`)
+```
+node daemon.mjs <port>
+```
+
+- Calls `loadConfig()` to load configuration
+- Calls `startServer(port)` to start HTTP+WS server
+- Writes PID file to `~/.ask-user-questions/server.pid`
+- Listens for SIGINT/SIGTERM to clean up PID file and exit
+
+### 2. MCP Entry (`bin.ts`)
+
+MCP STDIO service entry point, invoked by MCP clients (e.g., Claude Desktop, VS Code):
+
+1. `isServerAlive(url)` — Check daemon health status
+2. `spawnDaemon(port)` — If no daemon running, spawn detached `daemon.mjs`
+3. `ensureServer(port)` — Poll until daemon is ready (up to 50 × 100ms)
+4. `startMcp(url)` — Start MCP STDIO service (proxy mode)
+
+### 3. MCP Server (`mcp.ts`)
 
 Registers the `ask_user` tool with a Copilot-style batch question schema:
 
@@ -90,26 +125,26 @@ Registers the `ask_user` tool with a Copilot-style batch question schema:
     {
       question: string,           // Question text
       multiSelect: boolean,       // Allow multiple selections (default: false)
-      options?: [                 // Optional list of choices
+      options?: [                 // Optional preset options
         {
           label: string,          // Option label
           description?: string,   // Option description
-          recommended?: boolean   // Whether recommended
+          recommended?: boolean   // Mark as recommended
         }
       ]
     }
   ]
 }
-// Note: "Other" free-text input is always available — no need for the AI to add it
+// Note: "Other" free text input is always available — AI should not add it manually
 ```
 
 ```typescript
 server.tool('ask_user', { questions }, async () => {
-  // 1. Create question → store.createQuestion(questions)
+  // 1. HTTP POST to create question → daemon's store.createQuestion(questions)
   // 2. Send system notification
-  // 3. Open/focus browser
-  // 4. Block waiting for user answer (Promise)
-  // 5. Return SubQuestionAnswer[] to model
+  // 3. Check WebSocket connections (hasBrowserClients), open browser if none
+  // 4. HTTP GET long-poll waiting for user answer
+  // 5. Return SubQuestionAnswer[] to the model
 })
 ```
 
@@ -119,37 +154,50 @@ server.tool('ask_user', { questions }, async () => {
 // SubQuestionAnswer[]
 [
   {
-    selected: string[],    // Labels of selected options
-    freeText?: string      // Free-text input from "Other" field
+    selected: string[],    // Selected option labels
+    freeText?: string      // User's free text input ("Other")
   }
 ]
 ```
 
-**Key Design**: The tool call blocks (`await store.waitForAnswer(id)`) until the user submits an answer in the Web UI. This ensures the model doesn't continue until it has the answer.
+**Key design**: MCP tools always proxy to the daemon via HTTP API. Question creation uses `POST /api/questions`, waiting for answers uses `GET /api/questions/:id/wait` (long-polling). `GET /api/health` returns `browserClients` count to determine whether a browser needs to be opened.
 
-### 3. HTTP Server (`server.ts`)
+### 4. HTTP Server (`server.ts`)
 
 Provides the following API:
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/questions` | List all questions |
-| GET | `/api/questions/pending` | List pending questions |
 | GET | `/api/questions/:id` | Get a single question |
-| POST | `/api/questions/:id/answer` | Submit answers (`{ answers: SubQuestionAnswer[] }`) |
-| GET | `/api/config` | Get config |
-| PUT | `/api/config` | Update config |
-| GET | `/api/events` | SSE event stream |
-| GET | `/api/health` | Health check |
-| GET | `/*` | Static files (Web App) |
+| POST | `/api/questions` | Create a question (MCP proxy) |
+| POST | `/api/questions/:id/answer` | Submit answer (`{ answers: SubQuestionAnswer[] }`) |
+| GET | `/api/questions/:id/wait` | Long-poll for answer (MCP proxy) |
+| GET | `/api/config` | Get configuration |
+| PUT | `/api/config` | Update configuration |
+| GET | `/api/ws` | WebSocket connection (real-time events) |
+| GET | `/api/health` | Health check (includes `browserClients` count) |
+| GET | `/*` | Static files (Web App SPA + fallback routing) |
 
-### 4. Store (`store.ts`)
+**WebSocket Events**:
 
-In-memory state management with these core mechanisms:
+| Event | Direction | Description |
+|-------|-----------|-------------|
+| `init` | Server → Client | Sends all questions + config on connection |
+| `question:created` | Server → Client | New question created |
+| `question:answered` | Server → Client | Question answered |
+| `question:remind` | Server → Client | Question reminder |
+| `config:updated` | Server → Client | Config updated |
+
+**Browser client tracking**: The server maintains a `browserClientCount` counter, auto-incrementing/decrementing on WebSocket connect/disconnect. The Health API returns this count, and MCP uses it to decide whether to open a browser.
+
+### 5. Store (`store.ts`)
+
+In-memory state management with core mechanisms:
 
 - **Question storage**: `Map<string, Question>`
-- **Wait mechanism**: `Map<string, (answers: SubQuestionAnswer[]) => void>` — Stores the Promise resolve function when MCP tool awaits an answer
-- **Event subscriptions**: `Set<Listener>` — SSE connections subscribe to this event stream
+- **Wait mechanism**: `Map<string, (answers: SubQuestionAnswer[]) => void>` — When the MCP tool waits for an answer, the Promise's resolve function is stored here
+- **Event subscription**: `Set<Listener>` — WebSocket connections subscribe to this event stream
 
 **Core types**:
 
@@ -182,21 +230,21 @@ interface Question {
 - `waitForAnswer(id): Promise<SubQuestionAnswer[]>`
 
 ```
-[MCP call]                              [User answers]
-    │                                        │
-    ▼                                        ▼
+[MCP Call]                             [User Answer]
+    │                                       │
+    ▼                                       ▼
 createQuestion(subQuestions)       answerQuestion(id, answers)
-    │                                        │
-    ├─► Store in questions Map               ├─► Update question status
-    ├─► emit('question:created')             ├─► Call waiter resolve(answers)
-    └─► waitForAnswer(id)                    └─► emit('question:answered')
-         │                                            │
-         ▼                                            ▼
-    Returns Promise<SubQuestionAnswer[]>         SSE push to browser
-         ◄──────── resolve(answers) ──────────
+    │                                       │
+    ├─► Store in questions Map              ├─► Update question status
+    ├─► emit('question:created')            ├─► Call waiter resolve(answers)
+    └─► waitForAnswer(id)                   └─► emit('question:answered')
+         │                                           │
+         ▼                                           ▼
+    Return Promise<SubQuestionAnswer[]>     WebSocket push to browser
+         ◄──────────── resolve(answers) ─────────────
 ```
 
-### 5. Config (`config.ts`)
+### 6. Config (`config.ts`)
 
 Configuration file management. Config file path: `~/.ask-user-questions/config.json`.
 
@@ -208,41 +256,44 @@ interface Config {
 }
 ```
 
-Config can be modified via:
+Configuration can be modified via:
 - **REST API**: `GET/PUT /api/config`
-- **Web UI**: Settings panel (SettingsPanel)
+- **Web UI**: Settings panel
 
-### 6. Notify (`notify.ts`)
+### 7. Notify (`notify.ts`)
 
 System notifications and browser management:
 
-- **System notifications**: Sends desktop notifications when new questions are created
-- **Browser singleton**: On macOS, uses AppleScript to find and focus an existing browser tab (Chrome/Safari/Edge); falls back to opening a new tab if none is found
+- **System notifications**: Desktop notification when a new question is created
+- **Browser singleton**: On macOS, uses AppleScript to find and focus existing browser tabs (supports Chrome/Safari/Edge). Opens a new tab if none found.
 
-### 7. Web App
+### 8. Web App
 
-**New features**:
+**Features**:
 
-- **i18n**: Supports 5 languages (en, zh-CN, ko, ja, ru), auto-detected from browser, language preference persisted in localStorage
-- **Dark mode**: System/light/dark modes, persisted in localStorage, with FOUC prevention
-- **REST fallback**: Frontend fetches questions via REST API on mount before SSE connects
-- **Browser notifications**: Notification API + title flash when tab is unfocused
+- **vue-router routing**: Home page `/` shows pending questions list + answered history, detail page `/question/:id` shows full sub-questions
+- **i18n internationalization**: 5 languages (en, zh-CN, ko, ja, ru), auto-detects browser language, persists to localStorage
+- **Dark mode**: System/light/dark modes, persisted to localStorage, includes FOUC prevention
+- **WebSocket real-time communication**: Receives full state on connection (`init` event), then incremental updates
+- **Browser notifications**: Uses Notification API, title blinks when tab is unfocused
 
 **Data flow**:
 
-1. On page load, fetch initial data via REST (`/api/questions`)
-2. Connect to SSE (`/api/events`) and listen for real-time events
-3. SSE pushes new question events → page updates in real-time
-4. User answers sub-questions and submits → POST to API (`{ answers: SubQuestionAnswer[] }`)
-5. SSE pushes answer-completed event → page updates status
+1. On page load, connect WebSocket (`/api/ws`)
+2. Server sends `init` event with all questions and config
+3. WebSocket pushes new question events → page updates in real-time
+4. User clicks a pending question → navigates to detail page → answers and submits → POST to API
+5. WebSocket pushes answer complete event → page updates status
 
-**Component tree**:
+**Component structure**:
 
 ```
-App.vue (header: logo, tabs, language-select, theme-toggle, connection-dot)
- ├── QuestionList.vue
- │    └── QuestionCard.vue (× N) — batch sub-questions with options/multiSelect/"Other"
- └── SettingsPanel.vue — timeout, notification, autoOpenBrowser, language, theme
+App.vue (Shell: logo, settings panel, language selector, theme toggle, connection indicator)
+ ├── <router-view>
+ │    ├── home.vue — Pending list + answered history
+ │    └── question-detail.vue — Single question detail
+ │         └── QuestionCard.vue — Batch sub-questions with options/multi-select/"Other" input
+ └── SettingsPanel.vue — Timeout, notifications, auto-open browser, language, theme
 ```
 
 ## Project Structure
@@ -251,34 +302,38 @@ App.vue (header: logo, tabs, language-select, theme-toggle, connection-dot)
 packages/
 ├── server/
 │   └── src/
-│       ├── bin.ts       # Entry: start server + MCP
-│       ├── server.ts    # Hono + srvx HTTP server
-│       ├── mcp.ts       # MCP stdio + tool definition
+│       ├── bin.ts       # MCP entry: ensure daemon running + MCP STDIO
+│       ├── daemon.ts    # Daemon entry: background HTTP+WS server
+│       ├── server.ts    # Hono + @hono/node-ws HTTP/WS server
+│       ├── mcp.ts       # MCP stdio + tool definitions (HTTP API proxy)
 │       ├── store.ts     # In-memory state + event pub/sub
 │       ├── config.ts    # Config file management
-│       ├── notify.ts    # System notification + browser management
+│       ├── notify.ts    # System notifications + browser management
 │       ├── types.ts     # Type definitions
 │       └── index.ts     # Public API exports
 └── app/
     └── src/
-        ├── App.vue
+        ├── App.vue                    # Shell layout
+        ├── router.ts                  # Vue Router config
+        ├── pages/
+        │   ├── home.vue               # Home page
+        │   └── question-detail.vue    # Question detail page
         ├── components/
-        │   ├── QuestionCard.vue   # Question card (batch sub-questions)
-        │   ├── QuestionList.vue   # Question list
-        │   ├── SettingsPanel.vue  # Settings panel
-        │   └── ui/                # ShadcnVue components
+        │   ├── question-card.vue      # Question card (batch sub-questions)
+        │   ├── settings-panel.vue     # Settings panel
+        │   └── ui/                    # ShadcnVue components
         ├── composables/
-        │   ├── useQuestions.ts    # Question state + SSE
-        │   └── useDarkMode.ts    # Dark mode management
+        │   ├── use-questions.ts       # Question state + WebSocket
+        │   └── use-dark-mode.ts       # Dark mode management
         └── lib/
-            ├── api.ts             # API client + types
-            ├── i18n.ts            # i18n (5 languages)
-            └── utils.ts           # Utility functions
+            ├── api.ts                 # API client + WebSocket
+            ├── i18n.ts                # i18n (5 languages)
+            └── shadcn.ts              # ShadcnVue utilities
 ```
 
 ## Build & Distribution
 
-### Build Pipeline
+### Build Flow
 
 ```
 pnpm build
@@ -294,11 +349,10 @@ pnpm build
 
 ### npm Package Contents
 
-When published, the `ask-user-questions` npm package contains:
-
 ```
 dist/
-├── bin.mjs          # Server entry (with shebang)
+├── bin.mjs          # MCP Server entry (with shebang)
+├── daemon.mjs       # Daemon entry (background HTTP+WS server)
 ├── index.mjs        # Public API
 ├── index.d.mts      # Type declarations
 └── public/          # Embedded Web App static files
@@ -311,12 +365,12 @@ dist/
 
 ### GitHub Actions
 
-- **CI** (`ci.yml`): Runs type checking and build on every push/PR
-- **Publish** (`publish.yml`): Automatically publishes to npm when a `v*` tag is pushed
+- **CI** (`ci.yml`): Runs type checking and builds on every push/PR
+- **Publish** (`publish.yml`): Auto-publishes to npm when a `v*` tag is pushed
   - Uses OIDC (OpenID Connect) for npm provenance
-  - Ensures package origin is verifiable
+  - Ensures package origin is trustworthy
 
-### Release Process
+### Release Steps
 
 ```bash
 cd packages/server
@@ -324,7 +378,7 @@ npm version patch    # Update version
 git add -A && git commit -m "release: v0.1.1"
 git tag v0.1.1
 git push --follow-tags
-# → GitHub Actions automatically builds and publishes
+# → GitHub Actions auto-builds and publishes
 ```
 
 ## Development Guide
@@ -348,7 +402,7 @@ pnpm dev:server
 pnpm dev
 ```
 
-The App's Vite dev server proxies `/api/*` requests to `localhost:13390`, ensuring seamless frontend-backend integration during development.
+The App's Vite dev server proxies `/api/*` requests (including WebSocket `/api/ws`) to `localhost:13390`, ensuring seamless frontend-backend integration during development.
 
 ### Adding ShadcnVue Components
 
@@ -359,17 +413,23 @@ npx shadcn-vue@latest add [component-name]
 
 ## FAQ
 
-**Q: Why not WebSocket?**
-A: SSE is sufficient for this use case (server-side push + client HTTP POST) and simpler to implement.
+**Q: Why use a daemon architecture?**
+A: Multiple MCP clients create multiple MCP processes. The daemon architecture extracts the HTTP+WebSocket server into an independent process, with all MCP instances proxying to a unified Store via HTTP API, ensuring all questions appear in the same Web UI.
+
+**Q: Why WebSocket instead of SSE?**
+A: WebSocket supports bidirectional communication, allowing the server to track connected browser client count (`browserClientCount`), enabling smart browser management — only auto-opening the browser when no clients are connected.
 
 **Q: Why store state in memory instead of files?**
-A: Questions and answers are ephemeral session data that don't need persistence after the process ends. In-memory storage avoids the complexity of file I/O and serialization.
+A: Questions and answers are temporary session data that don't need persistence after process exit. In-memory storage avoids the complexity of file I/O and serialization.
 
-**Q: What if the port is already in use?**
-A: Use the `--port` flag: `npx ask-user-questions --port 8080`.
+**Q: What if the port is in use?**
+A: If port 13390 is already occupied by a non-ask-user-questions process, the daemon won't start. Kill the process using the port and retry.
+
+**Q: Where are daemon logs?**
+A: The daemon runs in detached mode with stdio ignored. The PID file is at `~/.ask-user-questions/server.pid`.
 
 **Q: Where is the config file?**
-A: `~/.ask-user-questions/config.json`. It can also be edited from the Web UI settings panel.
+A: `~/.ask-user-questions/config.json`, also configurable via the Web UI settings panel.
 
-**Q: How do I change the language?**
-A: The Web UI header has a language selector supporting en, zh-CN, ko, ja, and ru. The selection is persisted in localStorage.
+**Q: How to switch languages?**
+A: The Web UI header has a language selector supporting en, zh-CN, ko, ja, ru. Selection is persisted to localStorage.

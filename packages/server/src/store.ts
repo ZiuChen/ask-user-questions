@@ -123,7 +123,6 @@ class Store {
     }
   }
 
-  private
   private emit(event: string, data: unknown): void {
     for (const listener of this.listeners) {
       listener(event, data)

@@ -49,5 +49,8 @@
   "theme": "テーマ",
   "light": "ライト",
   "dark": "ダーク",
-  "system": "システム"
+  "system": "システム",
+
+  "back": "戻る",
+  "questionNotFound": "質問が見つかりません"
 }
